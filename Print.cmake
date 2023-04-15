@@ -1,0 +1,5 @@
+function(print_vars)
+    foreach(var ${ARGN})
+        message("${var} = ${${var}}")
+    endforeach()
+endfunction()

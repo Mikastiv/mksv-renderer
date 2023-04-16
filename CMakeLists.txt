@@ -13,8 +13,16 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+include(cmake/Print.cmake)
+include(cmake/ClangFormat.cmake)
+
 # Disable RTTI
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /GR-")
+
+# Whole program optimization
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /GL")
+endif()
 
 # Add Microsoft static analyzer
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /analyze /analyze:external- /analyze:projectdirectory ${CMAKE_CURRENT_SOURCE_DIR} /analyze:ruleset analyzer.ruleset")
@@ -24,9 +32,6 @@ add_compile_options(/MP)
 
 # Warning level + warning as errors
 add_compile_options(/W4 /WX)
-
-include(Print.cmake)
-include(ClangFormat.cmake)
 
 # Include sub-projects.
 add_subdirectory("mksv_engine")

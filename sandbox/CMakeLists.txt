@@ -1,12 +1,10 @@
-set(APP_NAME Sandbox)
+set(APP_NAME sandbox)
 
 set(INC_FILES
-    src/dx_game.hpp
 )
 
 set(SRC_FILES
     src/main.cpp
-    src/dx_game.cpp
 )
 
 add_clangformat_target(${APP_NAME} ${INC_FILES} ${SRC_FILES})
@@ -23,7 +21,7 @@ target_include_directories(${APP_NAME}
 )
 
 target_link_libraries(${APP_NAME}
-    PRIVATE DX12Lib
+    PRIVATE mksv_engine
     PRIVATE D3DCompiler.lib
     PRIVATE Shlwapi.lib
 )

@@ -1,15 +1,21 @@
-﻿set(LIB_NAME MksvEngine)
+﻿set(LIB_NAME mksv_engine)
 
 set(INC_FILES
+    inc/mksv/engine.hpp
 
-    resource.h
+    inc/mksv/common/types.hpp
+
+    inc/mksv/math/consts.hpp
+    inc/mksv/math/types.hpp
+
+    inc/mksv/wrapper/windows.h
 )
 
 set(SRC_FILES
+    src/engine.cpp
 )
 
 set(RESOURCE_FILES
-    DirectX12.rc
 )
 
 add_clangformat_target(${LIB_NAME} ${INC_FILES} ${SRC_FILES})

@@ -19,6 +19,9 @@ include(cmake/ClangFormat.cmake)
 # Disable RTTI
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /GR-")
 
+# Use unicode
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /DUNICODE")
+
 # Whole program optimization
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /GL")

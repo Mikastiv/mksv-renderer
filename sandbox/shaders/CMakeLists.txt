@@ -15,7 +15,7 @@ set(SHADER_FILES
 
 set_source_files_properties(${VERTEX_SHADERS} PROPERTIES ShaderType "vs")
 set_source_files_properties(${PIXEL_SHADERS} PROPERTIES ShaderType "ps")
-set_source_files_properties(${SHADER_FILES} PROPERTIES ShaderModel "5_1")
+set_source_files_properties(${SHADER_FILES} PROPERTIES ShaderModel "6_0")
 
 foreach(FILE ${SHADER_FILES})
     get_filename_component(FILE_WE ${FILE} NAME_WE)

@@ -3,6 +3,7 @@
 set(INC_FILES
     inc/mksv/engine.hpp
     inc/mksv/log.hpp
+    inc/mksv/window.hpp
 
     inc/mksv/common/types.hpp
 
@@ -17,6 +18,7 @@ set(INC_FILES
 set(SRC_FILES
     src/engine.cpp
     src/log.cpp
+    src/window.cpp
 
     src/string/utils.cpp
 )

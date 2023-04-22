@@ -62,7 +62,7 @@ auto log_fatal( const std::wstring_view msg, const std::source_location location
 auto log_last_window_error( const std::source_location location ) -> void
 {
     const auto error = get_last_window_error_string();
-    log_error( error.get() );
+    log_error( error.get(), location );
 }
 
 } // namespace mksv

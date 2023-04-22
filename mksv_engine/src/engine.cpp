@@ -9,7 +9,7 @@ namespace mksv
 {
 constexpr u32 CLASS_ALREADY_REGISTERED = 1410;
 
-static auto CALLBACK WndProc( HWND h_wnd, UINT message, WPARAM w_param, LPARAM l_param ) -> LRESULT;
+static auto CALLBACK WndProc( HWND h_wnd, UINT msg, WPARAM w_param, LPARAM l_param ) -> LRESULT;
 
 static auto register_window_class( const HINSTANCE h_instance ) -> bool
 {
@@ -76,8 +76,13 @@ Engine::~Engine()
     }
 }
 
-static auto CALLBACK WndProc( HWND h_wnd, UINT message, WPARAM w_param, LPARAM l_param ) -> LRESULT
+static auto CALLBACK WndProc( HWND h_wnd, UINT msg, WPARAM w_param, LPARAM l_param ) -> LRESULT
 {
-    return DefWindowProcW( h_wnd, message, w_param, l_param );
+    switch ( msg ) {
+        case WM_DESTROY: {
+            PostQuitMessage( 0 );
+        }
+    }
+    return DefWindowProcW( h_wnd, msg, w_param, l_param );
 }
 } // namespace mksv

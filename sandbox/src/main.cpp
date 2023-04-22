@@ -1,9 +1,9 @@
 #include <mksv/common/types.hpp>
 #include <mksv/engine.hpp>
 #include <mksv/log.hpp>
+#include <mksv/mksv_win.hpp>
+#include <mksv/utils/helpers.hpp>
 #include <mksv/window.hpp>
-#include <mksv/windows_helpers.hpp>
-#include <mksv/wrapper/windows.h>
 
 #include <crtdbg.h>
 

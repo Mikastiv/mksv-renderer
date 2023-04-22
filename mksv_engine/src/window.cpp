@@ -1,7 +1,7 @@
-#include "window.hpp"
+#include "mksv/window.hpp"
 
-#include "log.hpp"
-#include "windows_helpers.hpp"
+#include "mksv/log.hpp"
+#include "mksv/utils/helpers.hpp"
 
 #include <cassert>
 

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "common/types.hpp"
-#include "wrapper/windows.h"
+#include "mksv/common/types.hpp"
+#include "mksv_win.hpp"
 
 #include <optional>
 #include <string_view>

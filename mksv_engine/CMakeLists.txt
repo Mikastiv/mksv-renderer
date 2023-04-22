@@ -4,25 +4,24 @@ set(INC_FILES
     inc/mksv/engine.hpp
     inc/mksv/log.hpp
     inc/mksv/window.hpp
-    inc/mksv/windows_helpers.hpp
+    inc/mksv/mksv_win.hpp
 
     inc/mksv/common/types.hpp
 
     inc/mksv/math/consts.hpp
     inc/mksv/math/types.hpp
 
-    inc/mksv/string/utils.hpp
-
-    inc/mksv/wrapper/windows.h
+    inc/mksv/utils/helpers.hpp
+    inc/mksv/utils/string.hpp
 )
 
 set(SRC_FILES
     src/engine.cpp
     src/log.cpp
     src/window.cpp
-    src/windows_helpers.cpp
 
-    src/string/utils.cpp
+    src/utils/helpers.cpp
+    src/utils/string.cpp
 )
 
 set(RESOURCE_FILES
@@ -38,7 +37,6 @@ add_library(${LIB_NAME} STATIC
 
 target_include_directories(${LIB_NAME}
     PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/inc"
-    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/inc/mksv"
 )
 
 target_link_libraries(${LIB_NAME}

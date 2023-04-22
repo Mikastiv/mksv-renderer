@@ -6,7 +6,7 @@
 
 namespace mksv
 {
-using WindowErrorString = std::unique_ptr<wchar_t, decltype( &LocalFree )>;
+using WindowsErrorString = std::unique_ptr<wchar_t, decltype( &LocalFree )>;
 
-auto get_last_window_error_string() -> WindowErrorString;
+auto get_last_window_error_string() -> WindowsErrorString;
 } // namespace mksv

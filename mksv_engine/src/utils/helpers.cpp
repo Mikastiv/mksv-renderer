@@ -2,7 +2,7 @@
 
 namespace mksv
 {
-auto mksv::get_last_window_error_string() -> WindowErrorString
+auto mksv::get_last_window_error_string() -> WindowsErrorString
 {
     const auto error_code = GetLastError();
 
@@ -21,6 +21,6 @@ auto mksv::get_last_window_error_string() -> WindowErrorString
         message = nullptr;
     }
 
-    return WindowErrorString{ message, &LocalFree };
+    return WindowsErrorString{ message, &LocalFree };
 }
 } // namespace mksv

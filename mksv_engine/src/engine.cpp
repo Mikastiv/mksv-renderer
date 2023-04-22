@@ -3,58 +3,42 @@
 #include "mksv/log.hpp"
 #include "mksv/mksv_win.hpp"
 #include "mksv/utils/helpers.hpp"
-#include "mksv/window.hpp"
+
+#include <cassert>
 
 namespace mksv
 {
-constexpr u32 CLASS_ALREADY_REGISTERED = 1410;
 
-static auto CALLBACK WndProc( HWND h_wnd, UINT msg, WPARAM w_param, LPARAM l_param ) -> LRESULT;
-
-static auto register_window_class( const HINSTANCE h_instance ) -> bool
+auto new_engine() -> std::unique_ptr<Engine>
 {
-    const WNDCLASSEX wc{
-        .cbSize = sizeof( wc ),
-        .style = CS_HREDRAW | CS_VREDRAW,
-        .lpfnWndProc = &WndProc,
-        .cbClsExtra = 0,
-        .cbWndExtra = 0,
-        .hInstance = h_instance,
-        .hIcon = LoadIcon( NULL, IDI_APPLICATION ),
-        .hCursor = LoadCursor( NULL, IDC_ARROW ),
-        .hbrBackground = reinterpret_cast<HBRUSH>( COLOR_WINDOW + 1 ),
-        .lpszMenuName = nullptr,
-        .lpszClassName = Window::CLASS_NAME,
-        .hIconSm = LoadIcon( NULL, IDI_APPLICATION ) };
+    const HINSTANCE h_instance = GetModuleHandleW( nullptr );
+    assert( h_instance );
 
-    const ATOM class_id = RegisterClassExW( &wc );
-
-    if ( class_id == 0 && GetLastError() != CLASS_ALREADY_REGISTERED ) {
-        mksv::log_last_window_error();
-        return false;
+    auto window_class = new_window_class();
+    if ( !window_class ) {
+        return nullptr;
     }
 
-    return true;
-}
+    auto window = new_window(
+        WindowProps{ .width = 800, .height = 600, .title = L"MKSV Engine", .class_name = window_class->get_name().data() }
+    );
 
-auto new_engine( const HINSTANCE h_instance ) -> std::expected<Engine, EngineError>
-{
-    if ( !register_window_class( h_instance ) ) {
-        return std::unexpected{ EngineError::RegisterClassFailed };
+    if ( !window ) {
+        return nullptr;
     }
 
-    return Engine{ h_instance };
-}
+    window->show();
 
-Engine::Engine( const HINSTANCE h_instance )
-    : _h_instance{ h_instance }
-{
+    return std::unique_ptr<Engine>{
+        new Engine{h_instance, std::move( window_class ), std::move( window )}
+    };
 }
 
 Engine::Engine( Engine&& other )
-    : _h_instance{ other._h_instance }
+    : h_instance_{ other.h_instance_ },
+      window_class_{ std::move( other.window_class_ ) }
 {
-    other._h_instance = nullptr;
+    other.h_instance_ = nullptr;
 }
 
 auto Engine::operator=( Engine&& other ) -> Engine&
@@ -63,26 +47,18 @@ auto Engine::operator=( Engine&& other ) -> Engine&
         return *this;
     }
 
-    _h_instance = other._h_instance;
-    other._h_instance = nullptr;
+    h_instance_ = other.h_instance_;
+    window_class_ = std::move( other.window_class_ );
+    window_ = std::move( other.window_ );
+    other.h_instance_ = nullptr;
 
     return *this;
 }
 
-Engine::~Engine()
+Engine::Engine( const HINSTANCE h_instance, std::unique_ptr<WindowClass> window_class, std::unique_ptr<Window> window )
+    : h_instance_{ h_instance },
+      window_class_{ std::move( window_class ) },
+      window_{ std::move( window ) }
 {
-    if ( _h_instance != nullptr ) {
-        UnregisterClassW( Window::CLASS_NAME, _h_instance );
-    }
-}
-
-static auto CALLBACK WndProc( HWND h_wnd, UINT msg, WPARAM w_param, LPARAM l_param ) -> LRESULT
-{
-    switch ( msg ) {
-        case WM_DESTROY: {
-            PostQuitMessage( 0 );
-        }
-    }
-    return DefWindowProcW( h_wnd, msg, w_param, l_param );
 }
 } // namespace mksv

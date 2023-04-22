@@ -3,12 +3,12 @@
 #include <mksv/log.hpp>
 #include <mksv/mksv_win.hpp>
 #include <mksv/utils/helpers.hpp>
-#include <mksv/window.hpp>
+#include <mksv/win/window.hpp>
 
 #include <crtdbg.h>
 
 auto WINAPI wWinMain(
-    _In_ HINSTANCE                      hInstance,
+    [[maybe_unused]] _In_ HINSTANCE     hInstance,
     [[maybe_unused]] _In_opt_ HINSTANCE hPrevInstance,
     [[maybe_unused]] _In_ LPWSTR        lpCmdLine,
     [[maybe_unused]] _In_ i32           nShowCmd
@@ -18,27 +18,11 @@ auto WINAPI wWinMain(
     _CrtSetDbgFlag( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
 #endif
 
-    auto engine_result = mksv::new_engine( hInstance );
+    auto engine = mksv::new_engine();
 
-    if ( !engine_result.has_value() ) {
+    if ( !engine ) {
         mksv::log_fatal( L"Error creating the engine instance" );
         return -1;
-    }
-
-    const auto window_props =
-        mksv::WindowProps{ .width = 800, .height = 600, .title = L"MKSV Engine", .h_instance = hInstance };
-    auto window_result = mksv::new_window( window_props );
-
-    if ( !window_result.has_value() ) {
-        mksv::log_fatal( L"Error creating the main window" );
-        return -2;
-    }
-
-    auto engine = std::move( *engine_result );
-    auto main_window = std::move( *window_result );
-
-    if ( !main_window.show() ) {
-        mksv::log_last_window_error();
     }
 
     MSG msg{};

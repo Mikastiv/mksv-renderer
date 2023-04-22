@@ -3,7 +3,6 @@
 set(INC_FILES
     inc/mksv/engine.hpp
     inc/mksv/log.hpp
-    inc/mksv/window.hpp
     inc/mksv/mksv_win.hpp
 
     inc/mksv/common/types.hpp
@@ -13,15 +12,21 @@ set(INC_FILES
 
     inc/mksv/utils/helpers.hpp
     inc/mksv/utils/string.hpp
+
+    inc/mksv/win/window.hpp
+    inc/mksv/win/window_class.hpp
 )
 
 set(SRC_FILES
     src/engine.cpp
     src/log.cpp
-    src/window.cpp
 
     src/utils/helpers.cpp
     src/utils/string.cpp
+
+    src/win/window.cpp
+    src/win/window_proc.cpp
+    src/win/window_class.cpp
 )
 
 set(RESOURCE_FILES

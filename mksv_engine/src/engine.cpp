@@ -8,7 +8,6 @@
 
 namespace mksv
 {
-
 auto new_engine() -> std::unique_ptr<Engine>
 {
     const HINSTANCE h_instance = GetModuleHandleW( nullptr );
@@ -55,10 +54,17 @@ auto Engine::operator=( Engine&& other ) -> Engine&
     return *this;
 }
 
+Engine::~Engine()
+{
+    --instance_count;
+}
+
 Engine::Engine( const HINSTANCE h_instance, std::unique_ptr<WindowClass> window_class, std::unique_ptr<Window> window )
     : h_instance_{ h_instance },
       window_class_{ std::move( window_class ) },
       window_{ std::move( window ) }
 {
+    assert( instance_count == 0 && "Only 1 engine instance can exist at a time" );
+    ++instance_count;
 }
 } // namespace mksv

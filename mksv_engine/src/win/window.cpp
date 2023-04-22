@@ -62,9 +62,8 @@ auto Window::operator=( Window&& other ) -> Window&
 
 Window::~Window()
 {
-    if ( h_wnd_ != nullptr ) {
-        DestroyWindow( h_wnd_ );
-    }
+    assert( h_wnd_ != nullptr );
+    DestroyWindow( h_wnd_ );
 }
 
 auto Window::show() const -> bool

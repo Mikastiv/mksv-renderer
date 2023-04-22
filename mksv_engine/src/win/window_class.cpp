@@ -56,9 +56,8 @@ auto WindowClass::operator=( WindowClass&& other ) -> WindowClass&
 
 WindowClass::~WindowClass()
 {
-    if ( atom_ != 0 ) {
-        UnregisterClassW( MAKEINTATOM( atom_ ), GetModuleHandleW( nullptr ) );
-    }
+    assert( atom_ != 0 );
+    UnregisterClassW( MAKEINTATOM( atom_ ), GetModuleHandleW( nullptr ) );
 }
 
 auto WindowClass::get_atom() const -> ATOM

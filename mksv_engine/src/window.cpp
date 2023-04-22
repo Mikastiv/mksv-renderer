@@ -1,33 +1,75 @@
-#include "mksv/window.hpp"
 #include "window.hpp"
+
+#include "log.hpp"
+#include "windows_helpers.hpp"
 
 #include <cassert>
 
 namespace mksv
 {
 
-static constexpr const wchar_t* const WINDOW_CLASS_NAME = L"MksvEngineWindowClass";
-
-auto mksv::new_window( const WindowProps props ) -> std::expected<Window, HRESULT>
+auto mksv::new_window( const WindowProps props ) -> std::optional<Window>
 {
-    const WNDCLASSEX wc{
-        .cbSize = sizeof( wc ),
-        .style = CS_HREDRAW | CS_VREDRAW,
-        .lpfnWndProc = DefWindowProc,
-        .cbClsExtra = 0,
-        .cbWndExtra = 0,
-        .hInstance = props.h_instance,
-        .hIcon = LoadIcon( NULL, IDI_APPLICATION ),
-        .hCursor = LoadCursor( NULL, IDC_ARROW ),
-        .hbrBackground = reinterpret_cast<HBRUSH>( COLOR_WINDOW + 1 ),
-        .lpszMenuName = nullptr,
-        .lpszClassName = WINDOW_CLASS_NAME,
-        .hIconSm = LoadCursor( NULL, IDC_ARROW ) };
+    const HWND h_wnd = CreateWindowW(
+        Window::CLASS_NAME,
+        props.title.data(),
+        WS_OVERLAPPEDWINDOW,
+        CW_USEDEFAULT,
+        CW_USEDEFAULT,
+        static_cast<i32>( props.width ),
+        static_cast<i32>( props.height ),
+        nullptr,
+        nullptr,
+        props.h_instance,
+        nullptr
+    );
 
-    [[maybe_unused]] const ATOM class_id = RegisterClassEx( &wc );
-    // TODO: handle errors better
-    assert( class_id != 0 );
+    if ( h_wnd == nullptr ) {
+        mksv::log_last_window_error();
+        return std::nullopt;
+    }
 
-    return std::unexpected{ E_FAIL };
+    return Window{ h_wnd, props };
+}
+
+Window::Window( const HWND h_wnd, const WindowProps props )
+    : _h_wnd{ h_wnd },
+      _width{ props.width },
+      _height{ props.height }
+{
+}
+
+Window::Window( Window&& other )
+    : _h_wnd{ other._h_wnd },
+      _width{ other._width },
+      _height{ other._height }
+{
+    other._h_wnd = nullptr;
+}
+
+auto Window::operator=( Window&& other ) -> Window&
+{
+    if ( this == &other ) {
+        return *this;
+    }
+
+    _h_wnd = other._h_wnd;
+    other._h_wnd = nullptr;
+    _width = other._width;
+    _height = other._height;
+
+    return *this;
+}
+
+Window::~Window()
+{
+    if ( _h_wnd != nullptr ) {
+        DestroyWindow( _h_wnd );
+    }
+}
+
+auto Window::show() const -> bool
+{
+    return ShowWindow( _h_wnd, SW_SHOW );
 }
 } // namespace mksv

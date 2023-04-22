@@ -3,7 +3,7 @@
 #include "common/types.hpp"
 #include "wrapper/windows.h"
 
-#include <expected>
+#include <optional>
 #include <string_view>
 
 namespace mksv
@@ -18,19 +18,30 @@ struct WindowProps {
 
 class Window
 {
-    friend auto new_window( const u32 width, const u32 height ) -> std::expected<Window, HRESULT>;
+    friend auto new_window( const WindowProps props ) -> std::optional<Window>;
+
+public:
+    static constexpr const wchar_t CLASS_NAME[] = L"MksvEngineWindowClass";
 
 public:
     Window( const Window& ) = delete;
-    Window( Window&& ) = default;
+    Window( Window&& );
     auto operator=( const Window& ) -> Window& = delete;
-    auto operator=( Window&& ) -> Window& = default;
+    auto operator=( Window&& ) -> Window&;
     ~Window();
 
+public:
+    auto show() const -> bool;
+
 private:
-    Window( const WindowProps props );
+    Window( const HWND h_wnd, const WindowProps props );
+
+private:
+    HWND _h_wnd;
+    u32  _width;
+    u32  _height;
 };
 
-auto new_window( const WindowProps props ) -> std::expected<Window, HRESULT>;
+auto new_window( const WindowProps props ) -> std::optional<Window>;
 
 } // namespace mksv

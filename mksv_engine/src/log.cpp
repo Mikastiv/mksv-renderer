@@ -1,6 +1,7 @@
 #include "log.hpp"
 
 #include "string/utils.hpp"
+#include "windows_helpers.hpp"
 #include "wrapper/windows.h"
 
 #include <cassert>
@@ -9,9 +10,7 @@
 namespace mksv
 {
 
-namespace
-{
-auto log( const LogLevel level, const std::wstring_view msg, const std::source_location location ) -> void
+static auto log( const LogLevel level, const std::wstring_view msg, const std::source_location location ) -> void
 {
     const auto fmt{ std::format(
         L"[{}]: {} ({}:{})\n",
@@ -22,7 +21,6 @@ auto log( const LogLevel level, const std::wstring_view msg, const std::source_l
     ) };
     OutputDebugString( fmt.c_str() );
 }
-} // namespace
 
 auto log_level_str( const LogLevel level ) -> std::wstring_view
 {
@@ -59,6 +57,12 @@ auto log_error( const std::wstring_view msg, const std::source_location location
 auto log_fatal( const std::wstring_view msg, const std::source_location location ) -> void
 {
     log( LogLevel::Fatal, msg, location );
+}
+
+auto log_last_window_error( const std::source_location location ) -> void
+{
+    const auto error = get_last_window_error_string();
+    log_error( error.get() );
 }
 
 } // namespace mksv

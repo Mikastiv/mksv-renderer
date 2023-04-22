@@ -6,21 +6,28 @@
 
 namespace mksv
 {
+enum class EngineError {
+    RegisterClassFailed
+};
+
 class Engine
 {
-    friend auto new_engine() -> std::expected<Engine, HRESULT>;
+    friend auto new_engine( const HINSTANCE h_instance ) -> std::expected<Engine, EngineError>;
 
 public:
     Engine( const Engine& ) = delete;
-    Engine( Engine&& ) = default;
+    Engine( Engine&& );
     auto operator=( const Engine& ) -> Engine& = delete;
-    auto operator=( Engine&& ) -> Engine& = default;
-    ~Engine() = default;
+    auto operator=( Engine&& ) -> Engine&;
+    ~Engine();
 
 private:
-    Engine() = default;
+    Engine( const HINSTANCE h_instance );
+
+private:
+    HINSTANCE _h_instance;
 };
 
-auto new_engine() -> std::expected<Engine, HRESULT>;
+auto new_engine( const HINSTANCE h_instance ) -> std::expected<Engine, EngineError>;
 
 } // namespace mksv

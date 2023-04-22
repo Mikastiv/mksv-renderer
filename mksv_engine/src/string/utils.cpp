@@ -16,4 +16,5 @@ auto mksv::string_to_wstring( const std::string_view src ) -> std::wstring
 
     return dst;
 }
+
 } // namespace mksv

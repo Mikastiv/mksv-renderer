@@ -12,13 +12,13 @@ namespace mksv
 
 static auto log( const LogLevel level, const std::wstring_view msg, const std::source_location location ) -> void
 {
-    const auto fmt{ std::format(
+    const auto fmt = std::format(
         L"[{}]: {} ({}:{})\n",
         log_level_str( level ),
         msg,
         string_to_wstring( location.file_name() ),
         location.line()
-    ) };
+    );
     OutputDebugString( fmt.c_str() );
 }
 

@@ -29,6 +29,7 @@ public:
 
 public:
     auto show() const -> bool;
+    auto handle() const -> HWND;
 
 private:
     Window( const HWND h_wnd, WindowProps props );

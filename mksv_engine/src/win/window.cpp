@@ -12,7 +12,7 @@ auto new_window( const WindowProps props ) -> std::unique_ptr<Window>
 {
     const HWND h_wnd = CreateWindowW(
         props.class_name.c_str(),
-        props.title.data(),
+        props.title.c_str(),
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
@@ -69,5 +69,10 @@ Window::~Window()
 auto Window::show() const -> bool
 {
     return ShowWindow( h_wnd_, SW_SHOW );
+}
+
+auto Window::handle() const -> HWND
+{
+    return h_wnd_;
 }
 } // namespace mksv

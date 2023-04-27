@@ -2,6 +2,8 @@
 
 set(INC_FILES
     inc/mksv/engine.hpp
+    inc/mksv/keyboard.hpp
+    inc/mksv/keycodes.hpp
     inc/mksv/log.hpp
     inc/mksv/mksv_win.hpp
 
@@ -19,6 +21,7 @@ set(INC_FILES
 
 set(SRC_FILES
     src/engine.cpp
+    src/keyboard.cpp
     src/log.cpp
 
     src/utils/helpers.cpp

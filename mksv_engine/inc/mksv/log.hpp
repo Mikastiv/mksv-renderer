@@ -1,5 +1,6 @@
 #pragma once
 
+#include <format>
 #include <source_location>
 #include <string_view>
 

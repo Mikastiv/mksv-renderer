@@ -65,6 +65,16 @@ Engine::Engine( const HINSTANCE h_instance, std::unique_ptr<WindowClass> window_
       window_{ std::move( window ) }
 {
     assert( instance_count == 0 && "Only 1 engine instance can exist at a time" );
+    const LONG_PTR result = SetWindowLongPtrW( window_->handle(), GWLP_USERDATA, reinterpret_cast<LONG_PTR>( this ) );
+    if ( result != 0 ) {
+        log_last_window_error();
+    }
     ++instance_count;
 }
+
+auto Engine::GetKeyboard() -> Keyboard&
+{
+    return keyboard_;
+}
+
 } // namespace mksv

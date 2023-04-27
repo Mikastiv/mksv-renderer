@@ -11,9 +11,6 @@ enum class KeyState : bool {
     Up = 1,
 };
 
-struct KeyEvent {
-};
-
 class Keyboard
 {
 public:
@@ -28,6 +25,6 @@ public:
     auto update_key( const Key key, const KeyState key_state ) -> void;
 
 private:
-    std::array<bool, 256> key_states_;
+    std::array<KeyState, 256> key_states_;
 };
 } // namespace mksv

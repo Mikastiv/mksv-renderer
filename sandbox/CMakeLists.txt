@@ -21,7 +21,7 @@ target_include_directories(${APP_NAME}
 )
 
 target_link_libraries(${APP_NAME}
-    PRIVATE mksv_engine
+    PRIVATE mksv_renderer
     PRIVATE D3DCompiler.lib
     PRIVATE Shlwapi.lib
 )

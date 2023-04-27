@@ -3,7 +3,7 @@
 #
 cmake_minimum_required(VERSION 3.24)
 
-project(MksvEngine
+project(MksvRenderer
     VERSION 1.0
     LANGUAGES CXX
 )
@@ -37,7 +37,7 @@ add_compile_options(/MP)
 add_compile_options(/W4 /WX)
 
 # Include sub-projects.
-add_subdirectory("mksv_engine")
+add_subdirectory("mksv_renderer")
 add_subdirectory("sandbox")
 
 set_directory_properties(PROPERTIES

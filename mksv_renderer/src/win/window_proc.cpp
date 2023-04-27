@@ -1,8 +1,10 @@
 #include "mksv/engine.hpp"
 #include "mksv/keycodes.hpp"
+#include "mksv/log.hpp"
 #include "mksv/mksv_win.hpp"
 
 #include <cassert>
+#include <format>
 
 namespace mksv
 {
@@ -52,6 +54,7 @@ static auto process_key_event( const Key key, const KeyFlags flags, Keyboard& ke
 auto CALLBACK WndProc( HWND h_wnd, UINT msg, WPARAM w_param, LPARAM l_param ) -> LRESULT
 {
     Engine* engine = reinterpret_cast<Engine*>( GetWindowLongPtrW( h_wnd, GWLP_USERDATA ) );
+    // Some messages are sent on creation, so the pointer is not set yet
     if ( !engine ) {
         return DefWindowProcW( h_wnd, msg, w_param, l_param );
     }
@@ -68,9 +71,11 @@ auto CALLBACK WndProc( HWND h_wnd, UINT msg, WPARAM w_param, LPARAM l_param ) ->
         case WM_SYSKEYUP:
             [[fallthrough]];
         case WM_KEYUP: {
-            KeyFlags  flags{ l_param };
-            Keyboard& keyboard = engine->GetKeyboard();
-            process_key_event( static_cast<Key>( w_param ), flags, keyboard );
+            const KeyFlags flags{ l_param };
+            const Key      key{ static_cast<Key>( w_param ) };
+            Keyboard&      keyboard = engine->GetKeyboard();
+
+            process_key_event( key, flags, keyboard );
             break;
         }
         default:

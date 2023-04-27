@@ -1,4 +1,4 @@
-﻿set(LIB_NAME mksv_engine)
+﻿set(LIB_NAME mksv_renderer)
 
 set(INC_FILES
     inc/mksv/engine.hpp

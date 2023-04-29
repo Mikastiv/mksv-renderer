@@ -78,6 +78,10 @@ auto CALLBACK WndProc( HWND h_wnd, UINT msg, WPARAM w_param, LPARAM l_param ) ->
             process_key_event( key, flags, keyboard );
             break;
         }
+        case WM_PAINT: {
+            engine->update();
+            break;
+        }
         default:
             return DefWindowProcW( h_wnd, msg, w_param, l_param );
     }

@@ -31,8 +31,6 @@ auto log_level_str( const LogLevel level ) -> std::wstring_view
             return L"Warning";
         case LogLevel::Error:
             return L"Error";
-        case LogLevel::Fatal:
-            return L"Fatal";
         default:
             assert( false && "Unknown log level" );
             return L"UNKNOWN";
@@ -54,15 +52,15 @@ auto log_error( const std::wstring_view msg, const std::source_location location
     log( LogLevel::Error, msg, location );
 }
 
-auto log_fatal( const std::wstring_view msg, const std::source_location location ) -> void
-{
-    log( LogLevel::Fatal, msg, location );
-}
-
 auto log_last_window_error( const std::source_location location ) -> void
 {
     const auto error = get_last_window_error_string();
     log_error( error.get(), location );
+}
+
+auto log_hresult( const u32 hr, const std::source_location location ) -> void
+{
+    log_error( windows_error_string( static_cast<DWORD>( hr ) ).get(), location );
 }
 
 } // namespace mksv

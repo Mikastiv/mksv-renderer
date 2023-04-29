@@ -21,7 +21,7 @@ auto WINAPI wWinMain(
     auto engine = mksv::new_engine();
 
     if ( !engine ) {
-        mksv::log_fatal( L"Error creating the engine instance" );
+        mksv::log_error( L"Error creating the engine instance" );
         return -1;
     }
 

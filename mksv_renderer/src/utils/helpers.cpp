@@ -2,10 +2,8 @@
 
 namespace mksv
 {
-auto mksv::get_last_window_error_string() -> WindowsErrorString
+auto windows_error_string( const DWORD error_code ) -> WindowsErrorString
 {
-    const auto error_code = GetLastError();
-
     wchar_t*   message = nullptr;
     const auto result = FormatMessage(
         FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
@@ -22,5 +20,10 @@ auto mksv::get_last_window_error_string() -> WindowsErrorString
     }
 
     return WindowsErrorString{ message, &LocalFree };
+}
+
+auto get_last_window_error_string() -> WindowsErrorString
+{
+    return windows_error_string( GetLastError() );
 }
 } // namespace mksv

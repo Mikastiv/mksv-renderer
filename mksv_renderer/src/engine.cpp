@@ -18,7 +18,7 @@ auto new_engine() -> std::unique_ptr<Engine>
     u32     create_factory_flags = 0;
 
 #ifdef _DEBUG
-    ComPtr<ID3D12Debug3> debug_interface{};
+    ComPtr<D3D12Debug> debug_interface{};
     hr = D3D12GetDebugInterface( IID_PPV_ARGS( &debug_interface ) );
     if ( FAILED( hr ) ) {
         log_hresult( hr );
@@ -29,7 +29,7 @@ auto new_engine() -> std::unique_ptr<Engine>
     create_factory_flags = DXGI_CREATE_FACTORY_DEBUG;
 #endif
 
-    ComPtr<IDXGIFactory7> dxgi_factory{};
+    ComPtr<DXGIFactory> dxgi_factory{};
     hr = CreateDXGIFactory2( create_factory_flags, IID_PPV_ARGS( &dxgi_factory ) );
     if ( FAILED( hr ) ) {
         log_hresult( hr );
@@ -43,14 +43,14 @@ auto new_engine() -> std::unique_ptr<Engine>
         allow_tearing = false;
     }
 
-    ComPtr<IDXGIAdapter4> dxgi_adapter{};
+    ComPtr<DXGIAdapter> dxgi_adapter{};
     hr = dxgi_factory->EnumAdapterByGpuPreference( 0, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS( &dxgi_adapter ) );
     if ( FAILED( hr ) ) {
         log_hresult( hr );
         return nullptr;
     }
 
-    ComPtr<ID3D12Device8> d3d12_device{};
+    ComPtr<D3D12Device> d3d12_device{};
     hr = D3D12CreateDevice( dxgi_adapter.Get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS( &d3d12_device ) );
     if ( FAILED( hr ) ) {
         log_hresult( hr );
@@ -58,14 +58,23 @@ auto new_engine() -> std::unique_ptr<Engine>
     }
 
 #ifdef _DEBUG
-    ComPtr<ID3D12InfoQueue> info_queue{};
+    ComPtr<D3D12InfoQueue> info_queue{};
     hr = d3d12_device->QueryInterface( IID_PPV_ARGS( &info_queue ) );
     if ( FAILED( hr ) ) {
         log_hresult( hr );
     } else {
-        info_queue->SetBreakOnSeverity( D3D12_MESSAGE_SEVERITY_CORRUPTION, true );
-        info_queue->SetBreakOnSeverity( D3D12_MESSAGE_SEVERITY_ERROR, true );
-        info_queue->SetBreakOnSeverity( D3D12_MESSAGE_SEVERITY_WARNING, true );
+        hr = info_queue->SetBreakOnSeverity( D3D12_MESSAGE_SEVERITY_CORRUPTION, true );
+        if ( FAILED( hr ) ) {
+            log_hresult( hr );
+        }
+        hr = info_queue->SetBreakOnSeverity( D3D12_MESSAGE_SEVERITY_ERROR, true );
+        if ( FAILED( hr ) ) {
+            log_hresult( hr );
+        }
+        hr = info_queue->SetBreakOnSeverity( D3D12_MESSAGE_SEVERITY_WARNING, true );
+        if ( FAILED( hr ) ) {
+            log_hresult( hr );
+        }
     }
 #endif
 
@@ -82,19 +91,39 @@ auto new_engine() -> std::unique_ptr<Engine>
         return nullptr;
     }
 
+    if ( FAILED( hr ) ) {
+        log_hresult( hr );
+        return nullptr;
+    }
+
+    auto command_queue = create_command_queue( d3d12_device, D3D12_COMMAND_LIST_TYPE_DIRECT );
+
+    if ( !command_queue ) {
+        return nullptr;
+    }
+
     window->show();
 
-    return std::unique_ptr<Engine>{
-        new Engine{h_instance, std::move( window_class ), std::move( window ), d3d12_device}
-    };
+    return std::unique_ptr<Engine>{ new Engine(
+        h_instance,
+        std::move( window_class ),
+        std::move( window ),
+        dxgi_adapter,
+        d3d12_device,
+        std::move( command_queue )
+    ) };
 }
 
 Engine::Engine( Engine&& other )
     : h_instance_{ other.h_instance_ },
-      window_class_{ std::move( other.window_class_ ) }
+      window_class_{ std::move( other.window_class_ ) },
+      window_{ std::move( other.window_ ) },
+      keyboard_{ std::move( other.keyboard_ ) },
+      command_queue_{ std::move( other.command_queue_ ) }
 {
     other.h_instance_ = nullptr;
-    device_ = other.device_;
+    adapter_ = std::move( other.adapter_ );
+    device_ = std::move( other.device_ );
 }
 
 auto Engine::operator=( Engine&& other ) -> Engine&
@@ -106,8 +135,11 @@ auto Engine::operator=( Engine&& other ) -> Engine&
     h_instance_ = other.h_instance_;
     window_class_ = std::move( other.window_class_ );
     window_ = std::move( other.window_ );
+    keyboard_ = std::move( other.keyboard_ );
+    adapter_ = std::move( other.adapter_ );
+    device_ = std::move( other.device_ );
+    command_queue_ = std::move( other.command_queue_ );
     other.h_instance_ = nullptr;
-    device_ = other.device_;
 
     return *this;
 }
@@ -122,15 +154,19 @@ auto Engine::update() -> void
 }
 
 Engine::Engine(
-    const HINSTANCE              h_instance,
-    std::unique_ptr<WindowClass> window_class,
-    std::unique_ptr<Window>      window,
-    ComPtr<ID3D12Device8>        device
+    const HINSTANCE               h_instance,
+    std::unique_ptr<WindowClass>  window_class,
+    std::unique_ptr<Window>       window,
+    ComPtr<DXGIAdapter>           adapter,
+    ComPtr<D3D12Device>           device,
+    std::unique_ptr<CommandQueue> command_queue
 )
     : h_instance_{ h_instance },
       window_class_{ std::move( window_class ) },
       window_{ std::move( window ) },
-      device_{ device }
+      adapter_{ std::move( adapter ) },
+      device_{ std::move( device ) },
+      command_queue_{ std::move( command_queue ) }
 {
     assert( instance_count == 0 && "Only 1 engine instance can exist at a time" );
     const LONG_PTR result = SetWindowLongPtrW( window_->handle(), GWLP_USERDATA, reinterpret_cast<LONG_PTR>( this ) );

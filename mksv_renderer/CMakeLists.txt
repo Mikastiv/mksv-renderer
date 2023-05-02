@@ -1,6 +1,7 @@
 ﻿set(LIB_NAME mksv_renderer)
 
 set(INC_FILES
+    inc/mksv/mksv_d3d12.hpp
     inc/mksv/engine.hpp
     inc/mksv/keyboard.hpp
     inc/mksv/keycodes.hpp
@@ -8,6 +9,8 @@ set(INC_FILES
     inc/mksv/mksv_win.hpp
 
     inc/mksv/common/types.hpp
+
+    inc/mksv/graphics/command_queue.hpp
 
     inc/mksv/math/consts.hpp
     inc/mksv/math/types.hpp
@@ -23,6 +26,8 @@ set(SRC_FILES
     src/engine.cpp
     src/keyboard.cpp
     src/log.cpp
+
+    src/graphics/command_queue.cpp
 
     src/utils/helpers.cpp
     src/utils/string.cpp

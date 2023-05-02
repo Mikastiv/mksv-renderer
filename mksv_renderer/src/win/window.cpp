@@ -29,9 +29,7 @@ auto new_window( const WindowProps props ) -> std::unique_ptr<Window>
         return nullptr;
     }
 
-    return std::unique_ptr<Window>{
-        new Window{h_wnd, props}
-    };
+    return std::unique_ptr<Window>{ new Window( h_wnd, props ) };
 }
 
 Window::Window( const HWND h_wnd, WindowProps props )

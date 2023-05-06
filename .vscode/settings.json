@@ -73,6 +73,7 @@
         "xmemory": "cpp",
         "xtree": "cpp",
         "string_view": "cpp",
-        "cassert": "cpp"
+        "cassert": "cpp",
+        "numbers": "cpp"
     }
 }

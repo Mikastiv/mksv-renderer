@@ -8,20 +8,7 @@
 namespace mksv
 {
 
-CommandQueue::CommandQueue(
-    ComPtr<D3D12Device>       device,
-    ComPtr<D3D12CommandQueue> queue,
-    ComPtr<D3D12Fence>        fence,
-    const HANDLE              event
-)
-    : device_{ std::move( device ) },
-      queue_{ std::move( queue ) },
-      fence_{ std::move( fence ) },
-      fence_event_{ event }
-{
-}
-
-auto create_command_queue( ComPtr<D3D12Device> device, const D3D12_COMMAND_LIST_TYPE type )
+auto CommandQueue::create( ComPtr<D3D12Device> device, const D3D12_COMMAND_LIST_TYPE type )
     -> std::unique_ptr<CommandQueue>
 {
 
@@ -57,4 +44,23 @@ auto create_command_queue( ComPtr<D3D12Device> device, const D3D12_COMMAND_LIST_
         new CommandQueue( std::move( device ), std::move( command_queue ), std::move( fence ), event )
     );
 }
+
+CommandQueue::CommandQueue(
+    ComPtr<D3D12Device>       device,
+    ComPtr<D3D12CommandQueue> queue,
+    ComPtr<D3D12Fence>        fence,
+    const HANDLE              event
+)
+    : device_{ std::move( device ) },
+      queue_{ std::move( queue ) },
+      fence_{ std::move( fence ) },
+      fence_event_{ event }
+{
+}
+
+auto CommandQueue::get_ptr() const -> ComPtr<D3D12CommandQueue>
+{
+    return queue_;
+}
+
 } // namespace mksv

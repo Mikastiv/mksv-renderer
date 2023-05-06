@@ -1,7 +1,9 @@
 #pragma once
 
 #include "mksv/common/types.hpp"
+#include "mksv/mksv_d3d12.hpp"
 #include "mksv/mksv_win.hpp"
+#include "mksv/mksv_wrl.hpp"
 
 #include <memory>
 #include <string_view>
@@ -18,7 +20,12 @@ struct WindowProps {
 
 class Window
 {
-    friend auto new_window( WindowProps props ) -> std::unique_ptr<Window>;
+public:
+    static inline constexpr u32 BACK_BUFFER_COUNT = 3;
+
+public:
+    static auto create( WindowProps props, ComPtr<DXGIFactory> factory, ComPtr<D3D12CommandQueue> queue )
+        -> std::unique_ptr<Window>;
 
 public:
     Window( const Window& ) = delete;
@@ -32,14 +39,13 @@ public:
     auto handle() const -> HWND;
 
 private:
-    Window( const HWND h_wnd, WindowProps props );
+    Window( const HWND h_wnd, WindowProps props, ComPtr<DXGISwapChain> swapchain );
 
 private:
-    HINSTANCE   h_instance_;
-    HWND        h_wnd_;
-    WindowProps props_;
+    HINSTANCE             h_instance_;
+    HWND                  h_wnd_;
+    WindowProps           props_;
+    ComPtr<DXGISwapChain> swapchain_;
 };
-
-auto new_window( WindowProps props ) -> std::unique_ptr<Window>;
 
 } // namespace mksv

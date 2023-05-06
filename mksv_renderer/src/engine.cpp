@@ -36,13 +36,6 @@ auto new_engine() -> std::unique_ptr<Engine>
         return nullptr;
     }
 
-    u32 allow_tearing = 0;
-    hr = dxgi_factory->CheckFeatureSupport( DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allow_tearing, sizeof( allow_tearing ) );
-    if ( FAILED( hr ) ) {
-        log_hresult( hr );
-        allow_tearing = false;
-    }
-
     ComPtr<DXGIAdapter> dxgi_adapter{};
     hr = dxgi_factory->EnumAdapterByGpuPreference( 0, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS( &dxgi_adapter ) );
     if ( FAILED( hr ) ) {
@@ -78,13 +71,21 @@ auto new_engine() -> std::unique_ptr<Engine>
     }
 #endif
 
+    auto command_queue = CommandQueue::create( d3d12_device, D3D12_COMMAND_LIST_TYPE_DIRECT );
+
+    if ( !command_queue ) {
+        return nullptr;
+    }
+
     auto window_class = new_window_class();
     if ( !window_class ) {
         return nullptr;
     }
 
-    auto window = new_window(
-        WindowProps{ .width = 800, .height = 600, .title = L"MKSV Engine", .class_name = window_class->get_name().data() }
+    auto window = Window::create(
+        WindowProps{ .width = 800, .height = 600, .title = L"MKSV Engine", .class_name = window_class->get_name().data() },
+        dxgi_factory,
+        command_queue->get_ptr()
     );
 
     if ( !window ) {
@@ -93,12 +94,6 @@ auto new_engine() -> std::unique_ptr<Engine>
 
     if ( FAILED( hr ) ) {
         log_hresult( hr );
-        return nullptr;
-    }
-
-    auto command_queue = create_command_queue( d3d12_device, D3D12_COMMAND_LIST_TYPE_DIRECT );
-
-    if ( !command_queue ) {
         return nullptr;
     }
 

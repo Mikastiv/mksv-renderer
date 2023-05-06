@@ -9,8 +9,8 @@ namespace mksv
 {
 class CommandQueue
 {
-    friend auto create_command_queue( ComPtr<D3D12Device> device, const D3D12_COMMAND_LIST_TYPE type )
-        -> std::unique_ptr<CommandQueue>;
+public:
+    static auto create( ComPtr<D3D12Device> device, const D3D12_COMMAND_LIST_TYPE type ) -> std::unique_ptr<CommandQueue>;
 
 public:
     CommandQueue( const CommandQueue& ) = delete;
@@ -18,6 +18,9 @@ public:
     auto operator=( const CommandQueue& ) -> CommandQueue& = delete;
     auto operator=( CommandQueue&& ) -> CommandQueue& = default;
     ~CommandQueue() = default;
+
+public:
+    auto get_ptr() const -> ComPtr<D3D12CommandQueue>;
 
 private:
     CommandQueue( ComPtr<D3D12Device> device, ComPtr<D3D12CommandQueue> queue, ComPtr<D3D12Fence> fence, const HANDLE event );
@@ -28,8 +31,5 @@ private:
     ComPtr<D3D12Fence>        fence_;
     HANDLE                    fence_event_;
 };
-
-auto create_command_queue( ComPtr<D3D12Device> device, const D3D12_COMMAND_LIST_TYPE type )
-    -> std::unique_ptr<CommandQueue>;
 
 } // namespace mksv

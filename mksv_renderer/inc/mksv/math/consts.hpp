@@ -2,10 +2,10 @@
 
 #include "mksv/common/types.hpp"
 
-#include <DirectXMath.h>
+#include <numbers>
 
 namespace mksv
 {
-constexpr f32 PI = DirectX::XM_PI;
+constexpr f32 PI = std::numbers::pi_v<f32>;
 constexpr f32 EPSILON = 1e-5;
 } // namespace mksv

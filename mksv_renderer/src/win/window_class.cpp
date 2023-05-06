@@ -10,7 +10,7 @@ auto CALLBACK WndProc( HWND h_wnd, UINT msg, WPARAM w_param, LPARAM l_param ) ->
 
 auto new_window_class( std::wstring name ) -> std::unique_ptr<WindowClass>
 {
-    const WNDCLASSEX wc{
+    const WNDCLASSEX wc = {
         .cbSize = sizeof( wc ),
         .style = CS_HREDRAW | CS_VREDRAW,
         .lpfnWndProc = &WndProc,

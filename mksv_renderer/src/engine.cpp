@@ -1,9 +1,12 @@
 #include "mksv/engine.hpp"
 
 #include "mksv/log.hpp"
+#include "mksv/math/consts.hpp"
 #include "mksv/utils/helpers.hpp"
 
 #include <cassert>
+#include <chrono>
+#include <cmath>
 
 namespace mksv
 {
@@ -143,6 +146,10 @@ Engine::~Engine()
 
 auto Engine::update() -> void
 {
+    using namespace std::chrono;
+
+    static auto prev = high_resolution_clock::now();
+
     auto command_list = command_queue_->get_command_list();
     if ( !command_list ) {
         return;
@@ -187,8 +194,21 @@ auto Engine::update() -> void
         command_list->ResourceBarrier( 1, &barrier );
     }
 
+    const auto now = high_resolution_clock::now();
+    const f32  dt = duration_cast<duration<f32>>( now - prev ).count();
+    prev = now;
+
+    static f32 time = 0.0f;
+    time += 1.0f * dt;
+    if ( time >= 2.0f * PI ) {
+        time -= 2.0f * PI;
+    }
+
+    const f32  r = 0.5f + 0.5f * sin( time + 1.0f );
+    const f32  g = 0.5f + 0.5f * sin( time + 3.0f );
+    const f32  b = 0.5f + 0.5f * sin( time + 6.0f );
+    const f32  clear_color[4] = { r, g, b, 1.0f };
     const auto rtv = window_->get_render_target_view( current_index );
-    const f32  clear_color[4] = { 1.0f, 0.65f, 0.0f, 1.0f };
     command_list->ClearRenderTargetView( rtv, clear_color, 0, nullptr );
 
     {

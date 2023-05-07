@@ -8,7 +8,7 @@ namespace mksv
 {
 auto CALLBACK WndProc( HWND h_wnd, UINT msg, WPARAM w_param, LPARAM l_param ) -> LRESULT;
 
-auto new_window_class( std::wstring name ) -> std::unique_ptr<WindowClass>
+auto WindowClass::create( std::wstring name ) -> std::unique_ptr<WindowClass>
 {
     const WNDCLASSEX wc = {
         .cbSize = sizeof( wc ),

@@ -10,7 +10,8 @@ namespace mksv
 {
 class WindowClass
 {
-    friend auto new_window_class( std::wstring name ) -> std::unique_ptr<WindowClass>;
+public:
+    static auto create( std::wstring name ) -> std::unique_ptr<WindowClass>;
 
 public:
     WindowClass( const WindowClass& ) = delete;
@@ -31,5 +32,4 @@ private:
     std::wstring name_;
 };
 
-auto new_window_class( std::wstring name = L"MKSV_WindowClass" ) -> std::unique_ptr<WindowClass>;
 } // namespace mksv

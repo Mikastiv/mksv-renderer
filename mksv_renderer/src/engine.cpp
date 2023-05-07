@@ -77,7 +77,7 @@ auto new_engine() -> std::unique_ptr<Engine>
         return nullptr;
     }
 
-    auto window_class = new_window_class();
+    auto window_class = WindowClass::create( L"MKSV WindowClass" );
     if ( !window_class ) {
         return nullptr;
     }
@@ -90,11 +90,6 @@ auto new_engine() -> std::unique_ptr<Engine>
     );
 
     if ( !window ) {
-        return nullptr;
-    }
-
-    if ( FAILED( hr ) ) {
-        log_hresult( hr );
         return nullptr;
     }
 

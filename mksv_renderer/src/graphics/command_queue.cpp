@@ -54,13 +54,85 @@ CommandQueue::CommandQueue(
     : device_{ std::move( device ) },
       queue_{ std::move( queue ) },
       fence_{ std::move( fence ) },
-      fence_event_{ event }
+      fence_event_{ event },
+      fence_value_{ 0 }
 {
 }
 
 auto CommandQueue::get_ptr() const -> ComPtr<ID3D12CommandQueue>
 {
     return queue_;
+}
+
+auto CommandQueue::get_command_list() -> ComPtr<D3D12GraphicsCommandList>
+{
+    const auto desc = queue_->GetDesc();
+
+    ComPtr<ID3D12CommandAllocator> command_allocator{};
+    HRESULT hr = device_->CreateCommandAllocator( desc.Type, IID_PPV_ARGS( &command_allocator ) );
+
+    if ( FAILED( hr ) ) {
+        log_hresult( hr );
+        return nullptr;
+    }
+
+    ComPtr<D3D12GraphicsCommandList> command_list{};
+    hr = device_->CreateCommandList1( 0, desc.Type, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS( &command_list ) );
+
+    if ( FAILED( hr ) ) {
+        log_hresult( hr );
+        return nullptr;
+    }
+
+    hr = command_list->SetPrivateDataInterface( __uuidof( ID3D12CommandAllocator ), command_allocator.Get() );
+
+    if ( FAILED( hr ) ) {
+        log_hresult( hr );
+        return nullptr;
+    }
+
+    return command_list;
+}
+
+auto CommandQueue::execute( ID3D12CommandList* const command_list ) -> void
+{
+    queue_->ExecuteCommandLists( 1, &command_list );
+}
+
+auto CommandQueue::signal() -> u64
+{
+    ++fence_value_;
+    queue_->Signal( fence_.Get(), fence_value_ );
+    return fence_value_;
+}
+
+auto CommandQueue::is_fence_complete( const u64 fence_value ) const -> bool
+{
+    return fence_->GetCompletedValue() >= fence_value;
+}
+
+auto CommandQueue::wait_for_fence_value( const u64 fence_value ) -> HRESULT
+{
+    if ( is_fence_complete( fence_value ) ) {
+        return S_OK;
+    }
+
+    const HRESULT hr = fence_->SetEventOnCompletion( fence_value, fence_event_ );
+    if ( FAILED( hr ) ) {
+        return hr;
+    }
+
+    if ( WaitForSingleObject( fence_event_, DWORD_MAX ) == WAIT_FAILED ) {
+        log_last_window_error();
+        return E_FAIL;
+    }
+
+    return S_OK;
+}
+
+auto CommandQueue::flush() -> HRESULT
+{
+    return wait_for_fence_value( signal() );
 }
 
 } // namespace mksv

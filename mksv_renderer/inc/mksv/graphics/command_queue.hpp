@@ -1,5 +1,6 @@
 #pragma once
 
+#include "mksv/common/types.hpp"
 #include "mksv/mksv_d3d12.hpp"
 #include "mksv/mksv_wrl.hpp"
 
@@ -21,6 +22,12 @@ public:
 
 public:
     auto get_ptr() const -> ComPtr<ID3D12CommandQueue>;
+    auto get_command_list() -> ComPtr<D3D12GraphicsCommandList>;
+    auto execute( ID3D12CommandList* const command_list ) -> void;
+    auto signal() -> u64;
+    auto is_fence_complete( const u64 fence_value ) const -> bool;
+    auto wait_for_fence_value( const u64 fence_value ) -> HRESULT;
+    auto flush() -> HRESULT;
 
 private:
     CommandQueue( ComPtr<D3D12Device> device, ComPtr<ID3D12CommandQueue> queue, ComPtr<ID3D12Fence> fence, const HANDLE event );
@@ -30,6 +37,7 @@ private:
     ComPtr<ID3D12CommandQueue> queue_;
     ComPtr<ID3D12Fence>        fence_;
     HANDLE                     fence_event_;
+    u64                        fence_value_;
 };
 
 } // namespace mksv

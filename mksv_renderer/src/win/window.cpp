@@ -167,4 +167,30 @@ auto Window::handle() const -> HWND
 {
     return h_wnd_;
 }
+
+auto Window::get_back_buffer( const u32 index ) const -> const ComPtr<ID3D12Resource>&
+{
+    assert( index < Window::BACK_BUFFER_COUNT );
+    return back_buffers_[index];
+}
+
+auto Window::get_current_back_buffer_index() const -> u32
+{
+    return swapchain_->GetCurrentBackBufferIndex();
+}
+
+auto Window::get_render_target_view( const u32 index ) const -> D3D12_CPU_DESCRIPTOR_HANDLE
+{
+    D3D12_CPU_DESCRIPTOR_HANDLE handle = rtv_descriptor_heap_->GetCPUDescriptorHandleForHeapStart();
+
+    handle.ptr += index * rtv_descriptor_size_;
+
+    return handle;
+}
+
+auto Window::present( const bool v_sync ) -> HRESULT
+{
+    return swapchain_->Present( v_sync ? 1u : 0u, 0 );
+}
+
 } // namespace mksv

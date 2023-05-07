@@ -137,11 +137,95 @@ auto Engine::operator=( Engine&& other ) -> Engine&
 
 Engine::~Engine()
 {
+    command_queue_->flush();
     --instance_count;
 }
 
 auto Engine::update() -> void
 {
+    auto command_list = command_queue_->get_command_list();
+    if ( !command_list ) {
+        return;
+    }
+
+    ID3D12CommandAllocator* command_allocator = nullptr;
+    u32                     data_size = sizeof( command_allocator );
+    HRESULT hr = command_list->GetPrivateData( __uuidof( ID3D12CommandAllocator ), &data_size, &command_allocator );
+
+    if ( FAILED( hr ) ) {
+        log_hresult( hr );
+        return;
+    }
+
+    const u32   current_index = window_->get_current_back_buffer_index();
+    const auto& back_buffer = window_->get_back_buffer( current_index );
+
+    hr = command_allocator->Reset();
+    if ( FAILED( hr ) ) {
+        log_hresult( hr );
+        return;
+    }
+
+    hr = command_list->Reset( command_allocator, nullptr );
+    if ( FAILED( hr ) ) {
+        log_hresult( hr );
+        return;
+    }
+
+    {
+        const D3D12_RESOURCE_BARRIER barrier = {
+            .Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
+            .Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE,
+            .Transition = {
+                           .pResource = back_buffer.Get(),
+                           .Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+                           .StateBefore = D3D12_RESOURCE_STATE_PRESENT,
+                           .StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET,
+                           }
+        };
+
+        command_list->ResourceBarrier( 1, &barrier );
+    }
+
+    const auto rtv = window_->get_render_target_view( current_index );
+    const f32  clear_color[4] = { 1.0f, 0.65f, 0.0f, 1.0f };
+    command_list->ClearRenderTargetView( rtv, clear_color, 0, nullptr );
+
+    {
+        const D3D12_RESOURCE_BARRIER barrier = {
+            .Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
+            .Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE,
+            .Transition = {
+                           .pResource = back_buffer.Get(),
+                           .Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+                           .StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET,
+                           .StateAfter = D3D12_RESOURCE_STATE_PRESENT,
+                           }
+        };
+
+        command_list->ResourceBarrier( 1, &barrier );
+    }
+
+    hr = command_list->Close();
+    if ( FAILED( hr ) ) {
+        log_hresult( hr );
+        return;
+    }
+
+    command_queue_->execute( command_list.Get() );
+    const u64 fence_value = command_queue_->signal();
+
+    hr = window_->present( false );
+    if ( FAILED( hr ) ) {
+        log_hresult( hr );
+        return;
+    }
+
+    hr = command_queue_->wait_for_fence_value( fence_value );
+    if ( FAILED( hr ) ) {
+        log_hresult( hr );
+        return;
+    }
 }
 
 Engine::Engine(

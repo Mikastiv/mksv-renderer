@@ -20,16 +20,16 @@ public:
     ~CommandQueue() = default;
 
 public:
-    auto get_ptr() const -> ComPtr<D3D12CommandQueue>;
+    auto get_ptr() const -> ComPtr<ID3D12CommandQueue>;
 
 private:
-    CommandQueue( ComPtr<D3D12Device> device, ComPtr<D3D12CommandQueue> queue, ComPtr<D3D12Fence> fence, const HANDLE event );
+    CommandQueue( ComPtr<D3D12Device> device, ComPtr<ID3D12CommandQueue> queue, ComPtr<ID3D12Fence> fence, const HANDLE event );
 
 private:
-    ComPtr<D3D12Device>       device_;
-    ComPtr<D3D12CommandQueue> queue_;
-    ComPtr<D3D12Fence>        fence_;
-    HANDLE                    fence_event_;
+    ComPtr<D3D12Device>        device_;
+    ComPtr<ID3D12CommandQueue> queue_;
+    ComPtr<ID3D12Fence>        fence_;
+    HANDLE                     fence_event_;
 };
 
 } // namespace mksv

@@ -18,7 +18,7 @@ auto CommandQueue::create( ComPtr<D3D12Device> device, const D3D12_COMMAND_LIST_
         return nullptr;
     }
 
-    ComPtr<D3D12CommandQueue>      command_queue{};
+    ComPtr<ID3D12CommandQueue>     command_queue{};
     const D3D12_COMMAND_QUEUE_DESC desc{
         .Type = type,
         .Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL,
@@ -32,7 +32,7 @@ auto CommandQueue::create( ComPtr<D3D12Device> device, const D3D12_COMMAND_LIST_
         return nullptr;
     }
 
-    ComPtr<D3D12Fence> fence{};
+    ComPtr<ID3D12Fence> fence{};
     hr = device->CreateFence( 0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS( &fence ) );
 
     if ( FAILED( hr ) ) {
@@ -46,10 +46,10 @@ auto CommandQueue::create( ComPtr<D3D12Device> device, const D3D12_COMMAND_LIST_
 }
 
 CommandQueue::CommandQueue(
-    ComPtr<D3D12Device>       device,
-    ComPtr<D3D12CommandQueue> queue,
-    ComPtr<D3D12Fence>        fence,
-    const HANDLE              event
+    ComPtr<D3D12Device>        device,
+    ComPtr<ID3D12CommandQueue> queue,
+    ComPtr<ID3D12Fence>        fence,
+    const HANDLE               event
 )
     : device_{ std::move( device ) },
       queue_{ std::move( queue ) },
@@ -58,7 +58,7 @@ CommandQueue::CommandQueue(
 {
 }
 
-auto CommandQueue::get_ptr() const -> ComPtr<D3D12CommandQueue>
+auto CommandQueue::get_ptr() const -> ComPtr<ID3D12CommandQueue>
 {
     return queue_;
 }

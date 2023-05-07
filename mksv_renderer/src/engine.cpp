@@ -51,7 +51,7 @@ auto new_engine() -> std::unique_ptr<Engine>
     }
 
 #ifdef _DEBUG
-    ComPtr<D3D12InfoQueue> info_queue{};
+    ComPtr<ID3D12InfoQueue> info_queue{};
     hr = d3d12_device->QueryInterface( IID_PPV_ARGS( &info_queue ) );
     if ( FAILED( hr ) ) {
         log_hresult( hr );
@@ -85,7 +85,8 @@ auto new_engine() -> std::unique_ptr<Engine>
     auto window = Window::create(
         WindowProps{ .width = 800, .height = 600, .title = L"MKSV Engine", .class_name = window_class->get_name().data() },
         dxgi_factory,
-        command_queue->get_ptr()
+        command_queue->get_ptr(),
+        d3d12_device
     );
 
     if ( !window ) {

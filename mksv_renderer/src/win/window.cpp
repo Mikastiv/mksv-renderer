@@ -8,8 +8,12 @@
 namespace mksv
 {
 
-auto Window::create( const WindowProps props, ComPtr<DXGIFactory> factory, ComPtr<D3D12CommandQueue> queue )
-    -> std::unique_ptr<Window>
+auto Window::create(
+    const WindowProps          props,
+    ComPtr<DXGIFactory>        factory,
+    ComPtr<ID3D12CommandQueue> queue,
+    ComPtr<D3D12Device>        device
+) -> std::unique_ptr<Window>
 {
     const HWND h_wnd = CreateWindowW(
         props.class_name.c_str(),
@@ -38,7 +42,7 @@ auto Window::create( const WindowProps props, ComPtr<DXGIFactory> factory, ComPt
         allow_tearing = 0;
     }
 
-    const DXGI_SWAP_CHAIN_DESC1 desc = {
+    const DXGI_SWAP_CHAIN_DESC1 swapchain_desc = {
         .Width = props.width,
         .Height = props.height,
         .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
@@ -53,29 +57,81 @@ auto Window::create( const WindowProps props, ComPtr<DXGIFactory> factory, ComPt
     };
     ComPtr<IDXGISwapChain1> swapchain1{};
     ComPtr<DXGISwapChain>   swapchain{};
-    hr = factory->CreateSwapChainForHwnd( queue.Get(), h_wnd, &desc, nullptr, nullptr, &swapchain1 );
+    hr = factory->CreateSwapChainForHwnd( queue.Get(), h_wnd, &swapchain_desc, nullptr, nullptr, &swapchain1 );
     if ( FAILED( hr ) || FAILED( swapchain1.As( &swapchain ) ) ) {
         log_hresult( hr );
         DestroyWindow( h_wnd );
         return nullptr;
     }
 
-    return std::unique_ptr<Window>{ new Window( h_wnd, props, std::move( swapchain ) ) };
+    const D3D12_DESCRIPTOR_HEAP_DESC heap_desc = {
+        .Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
+        .NumDescriptors = Window::BACK_BUFFER_COUNT,
+        .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
+        .NodeMask = 0,
+    };
+    ComPtr<ID3D12DescriptorHeap> rtv_descriptor_heap{};
+    hr = device->CreateDescriptorHeap( &heap_desc, IID_PPV_ARGS( &rtv_descriptor_heap ) );
+    if ( FAILED( hr ) ) {
+        log_hresult( hr );
+        DestroyWindow( h_wnd );
+        return nullptr;
+    }
+
+    const u32 rtv_descriptor_size = device->GetDescriptorHandleIncrementSize( D3D12_DESCRIPTOR_HEAP_TYPE_RTV );
+
+    BackBuffers                 back_buffers;
+    D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = rtv_descriptor_heap->GetCPUDescriptorHandleForHeapStart();
+
+    for ( u32 i = 0; i < back_buffers.size(); ++i ) {
+        hr = swapchain->GetBuffer( i, IID_PPV_ARGS( &back_buffers[i] ) );
+        if ( FAILED( hr ) ) {
+            log_hresult( hr );
+            DestroyWindow( h_wnd );
+            return nullptr;
+        }
+
+        device->CreateRenderTargetView( back_buffers[i].Get(), nullptr, rtv_handle );
+        rtv_handle.ptr += rtv_descriptor_size;
+    }
+
+    return std::unique_ptr<Window>{ new Window(
+        h_wnd,
+        props,
+        std::move( swapchain ),
+        std::move( rtv_descriptor_heap ),
+        rtv_descriptor_size,
+        std::move( back_buffers )
+    ) };
 }
 
-Window::Window( const HWND h_wnd, WindowProps props, ComPtr<DXGISwapChain> swapchain )
+Window::Window(
+    const HWND                   h_wnd,
+    WindowProps                  props,
+    ComPtr<DXGISwapChain>        swapchain,
+    ComPtr<ID3D12DescriptorHeap> descriptor_heap,
+    const u32                    descriptor_size,
+    BackBuffers                  back_buffers
+)
     : h_wnd_{ h_wnd },
       props_{ std::move( props ) },
-      swapchain_{ std::move( swapchain ) }
+      swapchain_{ std::move( swapchain ) },
+      rtv_descriptor_heap_{ std::move( descriptor_heap ) },
+      rtv_descriptor_size_{ descriptor_size },
+      back_buffers_{ std::move( back_buffers ) }
 {
 }
 
 Window::Window( Window&& other )
     : h_wnd_{ other.h_wnd_ },
       props_{ std::move( other.props_ ) },
-      swapchain_{ std::move( other.swapchain_ ) }
+      swapchain_{ std::move( other.swapchain_ ) },
+      rtv_descriptor_heap_{ std::move( other.rtv_descriptor_heap_ ) },
+      rtv_descriptor_size_{ other.rtv_descriptor_size_ },
+      back_buffers_{ std::move( other.back_buffers_ ) }
 {
     other.h_wnd_ = nullptr;
+    other.rtv_descriptor_size_ = 0;
 }
 
 auto Window::operator=( Window&& other ) -> Window&
@@ -87,7 +143,11 @@ auto Window::operator=( Window&& other ) -> Window&
     h_wnd_ = other.h_wnd_;
     props_ = std::move( other.props_ );
     swapchain_ = std::move( other.swapchain_ );
+    rtv_descriptor_heap_ = std::move( other.rtv_descriptor_heap_ );
+    rtv_descriptor_size_ = other.rtv_descriptor_size_;
+    back_buffers_ = std::move( other.back_buffers_ );
     other.h_wnd_ = nullptr;
+    other.rtv_descriptor_size_ = 0;
 
     return *this;
 }

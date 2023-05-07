@@ -5,8 +5,9 @@
 #include "mksv/mksv_win.hpp"
 #include "mksv/mksv_wrl.hpp"
 
+#include <array>
 #include <memory>
-#include <string_view>
+#include <string>
 
 namespace mksv
 {
@@ -23,9 +24,15 @@ class Window
 public:
     static inline constexpr u32 BACK_BUFFER_COUNT = 3;
 
+    using BackBuffers = std::array<ComPtr<ID3D12Resource>, Window::BACK_BUFFER_COUNT>;
+
 public:
-    static auto create( WindowProps props, ComPtr<DXGIFactory> factory, ComPtr<D3D12CommandQueue> queue )
-        -> std::unique_ptr<Window>;
+    static auto create(
+        WindowProps                props,
+        ComPtr<DXGIFactory>        factory,
+        ComPtr<ID3D12CommandQueue> queue,
+        ComPtr<D3D12Device>        device
+    ) -> std::unique_ptr<Window>;
 
 public:
     Window( const Window& ) = delete;
@@ -39,13 +46,24 @@ public:
     auto handle() const -> HWND;
 
 private:
-    Window( const HWND h_wnd, WindowProps props, ComPtr<DXGISwapChain> swapchain );
+    Window(
+        const HWND                   h_wnd,
+        WindowProps                  props,
+        ComPtr<DXGISwapChain>        swapchain,
+        ComPtr<ID3D12DescriptorHeap> descriptor_heap,
+        const u32                    descriptor_size,
+        BackBuffers                  back_buffers
+    );
 
 private:
     HINSTANCE             h_instance_;
     HWND                  h_wnd_;
     WindowProps           props_;
     ComPtr<DXGISwapChain> swapchain_;
+
+    ComPtr<ID3D12DescriptorHeap> rtv_descriptor_heap_;
+    u32                          rtv_descriptor_size_;
+    BackBuffers                  back_buffers_;
 };
 
 } // namespace mksv

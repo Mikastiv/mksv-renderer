@@ -2,6 +2,7 @@
 
 #include "mksv/log.hpp"
 #include "mksv/math/consts.hpp"
+#include "mksv/utils/d3d12_helpers.hpp"
 #include "mksv/utils/helpers.hpp"
 
 #include <cassert>
@@ -180,16 +181,8 @@ auto Engine::update() -> void
     }
 
     {
-        const D3D12_RESOURCE_BARRIER barrier = {
-            .Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
-            .Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE,
-            .Transition = {
-                           .pResource = back_buffer.Get(),
-                           .Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
-                           .StateBefore = D3D12_RESOURCE_STATE_PRESENT,
-                           .StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET,
-                           }
-        };
+        const auto barrier =
+            d3d12::transition_barrier( back_buffer.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET );
 
         command_list->ResourceBarrier( 1, &barrier );
     }
@@ -212,16 +205,8 @@ auto Engine::update() -> void
     command_list->ClearRenderTargetView( rtv, clear_color, 0, nullptr );
 
     {
-        const D3D12_RESOURCE_BARRIER barrier = {
-            .Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
-            .Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE,
-            .Transition = {
-                           .pResource = back_buffer.Get(),
-                           .Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
-                           .StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET,
-                           .StateAfter = D3D12_RESOURCE_STATE_PRESENT,
-                           }
-        };
+        const auto barrier =
+            d3d12::transition_barrier( back_buffer.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT );
 
         command_list->ResourceBarrier( 1, &barrier );
     }

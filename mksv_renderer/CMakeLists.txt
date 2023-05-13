@@ -15,6 +15,7 @@ set(INC_FILES
     inc/mksv/math/consts.hpp
     inc/mksv/math/types.hpp
 
+    inc/mksv/utils/d3d12_helpers.hpp
     inc/mksv/utils/helpers.hpp
     inc/mksv/utils/string.hpp
 
@@ -29,6 +30,7 @@ set(SRC_FILES
 
     src/graphics/command_queue.cpp
 
+    src/utils/d3d12_helpers.cpp
     src/utils/helpers.cpp
     src/utils/string.cpp
 

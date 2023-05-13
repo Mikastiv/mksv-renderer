@@ -1,11 +1,11 @@
 ﻿set(LIB_NAME mksv_renderer)
 
 set(INC_FILES
-    inc/mksv/mksv_d3d12.hpp
     inc/mksv/engine.hpp
     inc/mksv/keyboard.hpp
     inc/mksv/keycodes.hpp
     inc/mksv/log.hpp
+    inc/mksv/mksv_d3d12.hpp
     inc/mksv/mksv_win.hpp
 
     inc/mksv/common/types.hpp

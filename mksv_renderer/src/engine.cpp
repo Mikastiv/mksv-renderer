@@ -248,6 +248,13 @@ auto Engine::copy_data() -> bool
     }
 
     command_list->CopyResource( vertex_buffer_.Get(), vertex_upload_buffer.Get() );
+    hr = command_list->Close();
+    if ( FAILED( hr ) ) {
+        log_hresult( hr );
+        return false;
+    }
+
+    command_queue_->execute( command_list.Get() );
     hr = command_queue_->flush();
     if ( FAILED( hr ) ) {
         log_hresult( hr );

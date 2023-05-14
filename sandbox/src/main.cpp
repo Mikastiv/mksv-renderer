@@ -18,10 +18,15 @@ auto WINAPI wWinMain(
     _CrtSetDbgFlag( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
 #endif
 
-    auto engine = mksv::new_engine();
+    auto engine = mksv::Engine::create();
 
     if ( !engine ) {
         mksv::log_error( L"Error creating the engine instance" );
+        return -1;
+    }
+
+    if ( !engine->copy_data() ) {
+        mksv::log_error( L"Failed to upload data to GPU" );
         return -1;
     }
 

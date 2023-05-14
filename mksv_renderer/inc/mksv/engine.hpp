@@ -15,7 +15,9 @@ namespace mksv
 class Engine
 {
     friend auto CALLBACK WndProc( HWND h_wnd, UINT msg, WPARAM w_param, LPARAM l_param ) -> LRESULT;
-    friend auto          new_engine() -> std::unique_ptr<Engine>;
+
+public:
+    static auto create() -> std::unique_ptr<Engine>;
 
 public:
     Engine( const Engine& ) = delete;
@@ -25,7 +27,8 @@ public:
     ~Engine();
 
 public:
-    auto update() -> void;
+    [[nodiscard]] auto copy_data() -> bool;
+    auto               update() -> void;
 
 private:
     Engine(
@@ -50,8 +53,7 @@ private:
     ComPtr<DXGIAdapter>           adapter_;
     ComPtr<D3D12Device>           device_;
     std::unique_ptr<CommandQueue> command_queue_;
+    ComPtr<ID3D12Resource>        vertex_buffer_;
 };
-
-auto new_engine() -> std::unique_ptr<Engine>;
 
 } // namespace mksv

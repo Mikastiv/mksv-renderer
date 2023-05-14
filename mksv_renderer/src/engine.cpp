@@ -1,17 +1,25 @@
 #include "mksv/engine.hpp"
 
+#include "mksv/common/types.hpp"
 #include "mksv/log.hpp"
 #include "mksv/math/consts.hpp"
+#include "mksv/math/types.hpp"
 #include "mksv/utils/d3d12_helpers.hpp"
 #include "mksv/utils/helpers.hpp"
 
 #include <cassert>
 #include <chrono>
 #include <cmath>
+#include <ranges>
 
 namespace mksv
 {
-auto new_engine() -> std::unique_ptr<Engine>
+struct Vertex {
+    vec3 pos;
+    vec3 col;
+};
+
+auto Engine::create() -> std::unique_ptr<Engine>
 {
     const HINSTANCE h_instance = GetModuleHandleW( nullptr );
     assert( h_instance );
@@ -114,11 +122,12 @@ Engine::Engine( Engine&& other )
       window_class_{ std::move( other.window_class_ ) },
       window_{ std::move( other.window_ ) },
       keyboard_{ std::move( other.keyboard_ ) },
-      command_queue_{ std::move( other.command_queue_ ) }
+      adapter_{ std::move( other.adapter_ ) },
+      device_{ std::move( other.device_ ) },
+      command_queue_{ std::move( other.command_queue_ ) },
+      vertex_buffer_{ std::move( other.vertex_buffer_ ) }
 {
     other.h_instance_ = nullptr;
-    adapter_ = std::move( other.adapter_ );
-    device_ = std::move( other.device_ );
 }
 
 auto Engine::operator=( Engine&& other ) -> Engine&
@@ -134,6 +143,7 @@ auto Engine::operator=( Engine&& other ) -> Engine&
     adapter_ = std::move( other.adapter_ );
     device_ = std::move( other.device_ );
     command_queue_ = std::move( other.command_queue_ );
+    vertex_buffer_ = std::move( other.vertex_buffer_ );
     other.h_instance_ = nullptr;
 
     return *this;
@@ -143,6 +153,108 @@ Engine::~Engine()
 {
     command_queue_->flush();
     --instance_count;
+}
+
+auto Engine::copy_data() -> bool
+{
+    auto command_list = command_queue_->get_command_list();
+    if ( !command_list ) {
+        return false;
+    }
+
+    ID3D12CommandAllocator* command_allocator = nullptr;
+    u32                     data_size = sizeof( command_allocator );
+    HRESULT hr = command_list->GetPrivateData( __uuidof( ID3D12CommandAllocator ), &data_size, &command_allocator );
+
+    if ( FAILED( hr ) ) {
+        log_hresult( hr );
+        return false;
+    }
+
+    const vec3 red = { 1.0f, 0.0f, 0.0f };
+    const vec3 green = { 0.0f, 1.0f, 0.0f };
+    const vec3 blue = { 0.0f, 0.0f, 1.0f };
+
+    const vec3 top = { 0.00f, 0.50f, 0.0f };
+    const vec3 right = { 0.43f, -0.25f, 0.0f };
+    const vec3 left = { -0.43f, -0.25f, 0.0f };
+
+    const Vertex vertices[] = {
+        {top,    red  },
+        { right, blue },
+        { left,  green},
+    };
+
+    {
+        const auto heap_props = d3d12::heap_properties( D3D12_HEAP_TYPE_DEFAULT );
+        const auto res_desc = d3d12::buffer_resource_desc( sizeof( vertices ) );
+
+        hr = device_->CreateCommittedResource(
+            &heap_props,
+            D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
+            &res_desc,
+            D3D12_RESOURCE_STATE_COPY_DEST,
+            nullptr,
+            IID_PPV_ARGS( &vertex_buffer_ )
+        );
+
+        if ( FAILED( hr ) ) {
+            log_hresult( hr );
+            return false;
+        }
+    }
+
+    ComPtr<ID3D12Resource> vertex_upload_buffer{};
+    {
+        const auto heap_props = d3d12::heap_properties( D3D12_HEAP_TYPE_UPLOAD );
+        const auto res_desc = d3d12::buffer_resource_desc( sizeof( vertices ) );
+
+        hr = device_->CreateCommittedResource(
+            &heap_props,
+            D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
+            &res_desc,
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS( &vertex_upload_buffer )
+        );
+
+        if ( FAILED( hr ) ) {
+            log_hresult( hr );
+            return false;
+        }
+    }
+
+    Vertex* mapped_vertices = nullptr;
+    hr = vertex_upload_buffer->Map( 0, nullptr, reinterpret_cast<void**>( &mapped_vertices ) );
+
+    if ( FAILED( hr ) ) {
+        log_hresult( hr );
+        return false;
+    }
+
+    std::ranges::copy( vertices, mapped_vertices );
+    vertex_upload_buffer->Unmap( 0, nullptr );
+
+    hr = command_allocator->Reset();
+    if ( FAILED( hr ) ) {
+        log_hresult( hr );
+        return false;
+    }
+
+    hr = command_list->Reset( command_allocator, nullptr );
+    if ( FAILED( hr ) ) {
+        log_hresult( hr );
+        return false;
+    }
+
+    command_list->CopyResource( vertex_buffer_.Get(), vertex_upload_buffer.Get() );
+    hr = command_queue_->flush();
+    if ( FAILED( hr ) ) {
+        log_hresult( hr );
+        return false;
+    }
+
+    return true;
 }
 
 auto Engine::update() -> void
@@ -246,7 +358,8 @@ Engine::Engine(
       window_{ std::move( window ) },
       adapter_{ std::move( adapter ) },
       device_{ std::move( device ) },
-      command_queue_{ std::move( command_queue ) }
+      command_queue_{ std::move( command_queue ) },
+      vertex_buffer_{ nullptr }
 {
     assert( instance_count == 0 && "Only 1 engine instance can exist at a time" );
     const LONG_PTR result = SetWindowLongPtrW( window_->handle(), GWLP_USERDATA, reinterpret_cast<LONG_PTR>( this ) );

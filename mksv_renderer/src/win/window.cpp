@@ -154,7 +154,6 @@ auto Window::operator=( Window&& other ) -> Window&
 
 Window::~Window()
 {
-    assert( h_wnd_ != nullptr );
     DestroyWindow( h_wnd_ );
 }
 

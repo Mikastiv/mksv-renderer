@@ -18,7 +18,7 @@ public:
     CommandQueue( CommandQueue&& ) = default;
     auto operator=( const CommandQueue& ) -> CommandQueue& = delete;
     auto operator=( CommandQueue&& ) -> CommandQueue& = default;
-    ~CommandQueue() = default;
+    ~CommandQueue();
 
 public:
     auto get_ptr() const -> ComPtr<ID3D12CommandQueue>;

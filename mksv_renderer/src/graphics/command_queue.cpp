@@ -45,6 +45,11 @@ auto CommandQueue::create( ComPtr<D3D12Device> device, const D3D12_COMMAND_LIST_
     );
 }
 
+CommandQueue::~CommandQueue()
+{
+    CloseHandle( fence_event_ );
+}
+
 CommandQueue::CommandQueue(
     ComPtr<D3D12Device>        device,
     ComPtr<ID3D12CommandQueue> queue,

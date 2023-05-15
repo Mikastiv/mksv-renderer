@@ -62,6 +62,22 @@ auto Engine::create() -> std::unique_ptr<Engine>
         return nullptr;
     }
 
+    D3D12_FEATURE_DATA_FEATURE_LEVELS levels{};
+    D3D_FEATURE_LEVEL                 levels_array[] = {
+        D3D_FEATURE_LEVEL_12_2,
+        D3D_FEATURE_LEVEL_12_1,
+        D3D_FEATURE_LEVEL_12_0,
+    };
+    levels.NumFeatureLevels = static_cast<u32>( std::size( levels_array ) );
+    levels.pFeatureLevelsRequested = levels_array;
+
+    hr = d3d12_device->CheckFeatureSupport( D3D12_FEATURE_FEATURE_LEVELS, &levels, sizeof( levels ) );
+    if ( SUCCEEDED( hr ) && levels.MaxSupportedFeatureLevel == D3D_FEATURE_LEVEL_12_2 ) {
+        log_info( L"DirectX 12 Ultimate Supported" );
+    } else {
+        log_info( L"DirectX 12 Ultimate Unsupported" );
+    }
+
 #ifdef _DEBUG
     ComPtr<ID3D12InfoQueue> info_queue{};
     hr = d3d12_device->QueryInterface( IID_PPV_ARGS( &info_queue ) );
@@ -337,7 +353,6 @@ auto Engine::update() -> void
     }
 
     command_queue_->execute( command_list.Get() );
-    const u64 fence_value = command_queue_->signal();
 
     hr = window_->present( false );
     if ( FAILED( hr ) ) {
@@ -345,7 +360,7 @@ auto Engine::update() -> void
         return;
     }
 
-    hr = command_queue_->wait_for_fence_value( fence_value );
+    hr = command_queue_->flush();
     if ( FAILED( hr ) ) {
         log_hresult( hr );
         return;

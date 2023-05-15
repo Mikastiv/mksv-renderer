@@ -4,6 +4,7 @@
 #include "mksv/utils/helpers.hpp"
 #include "mksv/utils/string.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <format>
 
@@ -55,12 +56,12 @@ auto log_error( const std::wstring_view msg, const std::source_location location
 auto log_last_window_error( const std::source_location location ) -> void
 {
     const auto error = get_last_window_error_string();
-    log_error( error.get(), location );
+    log_error( error, location );
 }
 
 auto log_hresult( const u32 hr, const std::source_location location ) -> void
 {
-    log_error( windows_error_string( static_cast<DWORD>( hr ) ).get(), location );
+    log_error( windows_error_string( static_cast<DWORD>( hr ) ), location );
 }
 
 } // namespace mksv

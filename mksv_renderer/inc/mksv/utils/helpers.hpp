@@ -3,12 +3,11 @@
 #include "mksv/mksv_win.hpp"
 
 #include <memory>
+#include <string>
 
 namespace mksv
 {
-using WindowsErrorString = std::unique_ptr<wchar_t, decltype( &LocalFree )>;
+auto windows_error_string( const DWORD error ) -> std::wstring;
 
-auto windows_error_string( const DWORD error ) -> WindowsErrorString;
-
-auto get_last_window_error_string() -> WindowsErrorString;
+auto get_last_window_error_string() -> std::wstring;
 } // namespace mksv

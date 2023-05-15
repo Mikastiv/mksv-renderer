@@ -37,8 +37,8 @@ auto Engine::create() -> std::unique_ptr<Engine>
     } else {
         debug_interface->EnableDebugLayer();
         debug_interface->SetEnableGPUBasedValidation( true );
+        create_factory_flags = DXGI_CREATE_FACTORY_DEBUG;
     }
-    create_factory_flags = DXGI_CREATE_FACTORY_DEBUG;
 #endif
 
     ComPtr<DXGIFactory> dxgi_factory{};

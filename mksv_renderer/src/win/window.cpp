@@ -15,14 +15,19 @@ auto Window::create(
     ComPtr<D3D12Device>        device
 ) -> std::unique_ptr<Window>
 {
+    RECT window_rect =
+        { .left = 0, .top = 0, .right = static_cast<LONG>( props.width ), .bottom = static_cast<LONG>( props.height ) };
+
+    AdjustWindowRect( &window_rect, WS_OVERLAPPEDWINDOW, false );
+
     const HWND h_wnd = CreateWindowW(
         props.class_name.c_str(),
         props.title.c_str(),
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
-        static_cast<i32>( props.width ),
-        static_cast<i32>( props.height ),
+        window_rect.right - window_rect.left,
+        window_rect.bottom - window_rect.top,
         nullptr,
         nullptr,
         GetModuleHandleW( nullptr ),

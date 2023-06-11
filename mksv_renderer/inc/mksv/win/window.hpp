@@ -48,6 +48,8 @@ public:
     auto get_current_back_buffer_index() const -> u32;
     auto get_render_target_view( const u32 index ) const -> D3D12_CPU_DESCRIPTOR_HANDLE;
     auto present( const bool v_sync ) -> HRESULT;
+    auto width() const -> u32;
+    auto height() const -> u32;
 
 private:
     Window(

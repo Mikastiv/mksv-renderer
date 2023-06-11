@@ -6,10 +6,12 @@
 #include "mksv/math/types.hpp"
 #include "mksv/utils/d3d12_helpers.hpp"
 #include "mksv/utils/helpers.hpp"
+#include "mksv/utils/string.hpp"
 
 #include <cassert>
 #include <chrono>
 #include <cmath>
+#include <d3dcompiler.h>
 #include <ranges>
 
 namespace mksv
@@ -64,16 +66,29 @@ auto Engine::create() -> std::unique_ptr<Engine>
 
     D3D12_FEATURE_DATA_FEATURE_LEVELS levels{};
     D3D_FEATURE_LEVEL                 levels_array[] = {
+        D3D_FEATURE_LEVEL_12_0,
+        D3D_FEATURE_LEVEL_12_1,
         D3D_FEATURE_LEVEL_12_2,
     };
     levels.NumFeatureLevels = static_cast<u32>( std::size( levels_array ) );
     levels.pFeatureLevelsRequested = levels_array;
 
     hr = d3d12_device->CheckFeatureSupport( D3D12_FEATURE_FEATURE_LEVELS, &levels, sizeof( levels ) );
-    if ( SUCCEEDED( hr ) && levels.MaxSupportedFeatureLevel == D3D_FEATURE_LEVEL_12_2 ) {
-        log_info( L"DirectX 12 Ultimate Supported" );
-    } else {
-        log_info( L"DirectX 12 Ultimate Unsupported" );
+    if ( SUCCEEDED( hr ) ) {
+        const wchar_t* feature_level_str = nullptr;
+        switch ( levels.MaxSupportedFeatureLevel ) {
+            case D3D_FEATURE_LEVEL_12_0:
+                feature_level_str = L"12.0";
+                break;
+            case D3D_FEATURE_LEVEL_12_1:
+                feature_level_str = L"12.1";
+                break;
+            case D3D_FEATURE_LEVEL_12_2:
+                feature_level_str = L"12.2";
+                break;
+        }
+
+        log_info( std::format( L"Supported feature level: {}", feature_level_str ) );
     }
 
 #ifdef _DEBUG
@@ -139,9 +154,13 @@ Engine::Engine( Engine&& other )
       adapter_{ std::move( other.adapter_ ) },
       device_{ std::move( other.device_ ) },
       command_queue_{ std::move( other.command_queue_ ) },
-      vertex_buffer_{ std::move( other.vertex_buffer_ ) }
+      vertex_buffer_{ std::move( other.vertex_buffer_ ) },
+      vertex_buffer_view_{ other.vertex_buffer_view_ },
+      root_signature_{ std::move( other.root_signature_ ) },
+      pipeline_state_{ std::move( other.pipeline_state_ ) }
 {
     other.h_instance_ = nullptr;
+    other.vertex_buffer_view_ = {};
 }
 
 auto Engine::operator=( Engine&& other ) -> Engine&
@@ -158,7 +177,11 @@ auto Engine::operator=( Engine&& other ) -> Engine&
     device_ = std::move( other.device_ );
     command_queue_ = std::move( other.command_queue_ );
     vertex_buffer_ = std::move( other.vertex_buffer_ );
+    vertex_buffer_view_ = other.vertex_buffer_view_;
+    root_signature_ = std::move( other.root_signature_ );
+    pipeline_state_ = std::move( other.pipeline_state_ );
     other.h_instance_ = nullptr;
+    other.vertex_buffer_view_ = {};
 
     return *this;
 }
@@ -190,8 +213,8 @@ auto Engine::copy_data() -> bool
     const vec3 blue = { 0.0f, 0.0f, 1.0f };
 
     const vec3 top = { 0.00f, 0.50f, 0.0f };
-    const vec3 right = { 0.43f, -0.25f, 0.0f };
     const vec3 left = { -0.43f, -0.25f, 0.0f };
+    const vec3 right = { 0.43f, -0.25f, 0.0f };
 
     const Vertex vertices[] = {
         {top,    red  },
@@ -262,6 +285,13 @@ auto Engine::copy_data() -> bool
     }
 
     command_list->CopyResource( vertex_buffer_.Get(), vertex_upload_buffer.Get() );
+    const auto vertex_barrier = d3d12::transition_barrier(
+        vertex_buffer_.Get(),
+        D3D12_RESOURCE_STATE_COPY_DEST,
+        D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
+    );
+    command_list->ResourceBarrier( 1, &vertex_barrier );
+
     hr = command_list->Close();
     if ( FAILED( hr ) ) {
         log_hresult( hr );
@@ -270,6 +300,116 @@ auto Engine::copy_data() -> bool
 
     command_queue_->execute( command_list.Get() );
     hr = command_queue_->flush();
+    if ( FAILED( hr ) ) {
+        log_hresult( hr );
+        return false;
+    }
+
+    vertex_buffer_view_ = {
+        .BufferLocation = vertex_buffer_->GetGPUVirtualAddress(),
+        .SizeInBytes = sizeof( vertices ),
+        .StrideInBytes = sizeof( Vertex ),
+    };
+
+    const D3D12_ROOT_SIGNATURE_DESC root_signature_desc = {
+        .NumParameters = 0,
+        .pParameters = nullptr,
+        .NumStaticSamplers = 0,
+        .pStaticSamplers = nullptr,
+        .Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT,
+    };
+
+    ComPtr<ID3DBlob> signature_blob;
+    ComPtr<ID3DBlob> error_blob;
+    hr = D3D12SerializeRootSignature( &root_signature_desc, D3D_ROOT_SIGNATURE_VERSION_1, &signature_blob, &error_blob );
+    if ( FAILED( hr ) ) {
+        log_hresult( hr );
+        if ( error_blob ) {
+            const auto error_msg = static_cast<const char*>( error_blob->GetBufferPointer() );
+            log_error( string_to_wstring( error_msg ) );
+        }
+        return false;
+    }
+
+    hr = device_->CreateRootSignature(
+        0,
+        signature_blob->GetBufferPointer(),
+        signature_blob->GetBufferSize(),
+        IID_PPV_ARGS( &root_signature_ )
+    );
+    if ( FAILED( hr ) ) {
+        log_hresult( hr );
+        return false;
+    }
+
+    struct PipelineStateStream {
+        d3d12::PSSRootSignature       root_sig;
+        d3d12::PSSInputLayout         input_layout;
+        d3d12::PSSPrimitiveTopology   primitive_topology;
+        d3d12::PSSVertexShader        vs;
+        d3d12::PSSPixelShader         ps;
+        d3d12::PSSRenderTargetFormats rtv_formats;
+    } pss;
+
+    const D3D12_INPUT_ELEMENT_DESC elements_desc[] = {
+        {.SemanticName = "POSITION",
+         .SemanticIndex = 0,
+         .Format = DXGI_FORMAT_R32G32B32_FLOAT,
+         .InputSlot = 0,
+         .AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT,
+         .InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+         .InstanceDataStepRate = 0},
+        { .SemanticName = "COLOR",
+         .SemanticIndex = 0,
+         .Format = DXGI_FORMAT_R32G32B32_FLOAT,
+         .InputSlot = 0,
+         .AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT,
+         .InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+         .InstanceDataStepRate = 0},
+    };
+    const D3D12_INPUT_LAYOUT_DESC input_layout = {
+        .pInputElementDescs = elements_desc,
+        .NumElements = static_cast<UINT>( std::size( elements_desc ) ),
+    };
+
+    ComPtr<ID3DBlob> vs_blob;
+    hr = D3DReadFileToBlob( L"vertex_shader.cso", &vs_blob );
+    if ( FAILED( hr ) ) {
+        log_hresult( hr );
+        return false;
+    }
+    const D3D12_SHADER_BYTECODE vs_bytecode = {
+        .pShaderBytecode = vs_blob->GetBufferPointer(),
+        .BytecodeLength = vs_blob->GetBufferSize(),
+    };
+
+    ComPtr<ID3DBlob> ps_blob;
+    hr = D3DReadFileToBlob( L"pixel_shader.cso", &ps_blob );
+    if ( FAILED( hr ) ) {
+        log_hresult( hr );
+        return false;
+    }
+
+    const D3D12_SHADER_BYTECODE ps_bytecode = {
+        .pShaderBytecode = ps_blob->GetBufferPointer(),
+        .BytecodeLength = ps_blob->GetBufferSize(),
+    };
+
+    pss.root_sig = root_signature_.Get();
+    pss.input_layout = input_layout;
+    pss.primitive_topology = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    pss.vs = vs_bytecode;
+    pss.ps = ps_bytecode;
+    pss.rtv_formats = {
+        .RTFormats{ DXGI_FORMAT_R8G8B8A8_UNORM },
+        .NumRenderTargets = 1,
+    };
+
+    const D3D12_PIPELINE_STATE_STREAM_DESC pss_desc = {
+        .SizeInBytes = sizeof( pss ),
+        .pPipelineStateSubobjectStream = &pss,
+    };
+    hr = device_->CreatePipelineState( &pss_desc, IID_PPV_ARGS( &pipeline_state_ ) );
     if ( FAILED( hr ) ) {
         log_hresult( hr );
         return false;
@@ -336,6 +476,31 @@ auto Engine::update() -> void
     const f32  clear_color[4] = { r, g, b, 1.0f };
     const auto rtv = window_->get_render_target_view( current_index );
     command_list->ClearRenderTargetView( rtv, clear_color, 0, nullptr );
+
+    const D3D12_RECT scissor_rect = {
+        .left = 0,
+        .top = 0,
+        .right = LONG_MAX,
+        .bottom = LONG_MAX,
+    };
+
+    const D3D12_VIEWPORT viewport = {
+        .TopLeftX = 0.0f,
+        .TopLeftY = 0.0f,
+        .Width = static_cast<f32>( window_->width() ),
+        .Height = static_cast<f32>( window_->height() ),
+        .MinDepth = D3D12_MIN_DEPTH,
+        .MaxDepth = D3D12_MAX_DEPTH,
+    };
+
+    command_list->SetPipelineState( pipeline_state_.Get() );
+    command_list->SetGraphicsRootSignature( root_signature_.Get() );
+    command_list->IASetPrimitiveTopology( D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
+    command_list->IASetVertexBuffers( 0, 1, &vertex_buffer_view_ );
+    command_list->RSSetViewports( 1, &viewport );
+    command_list->RSSetScissorRects( 1, &scissor_rect );
+    command_list->OMSetRenderTargets( 1, &rtv, true, nullptr );
+    command_list->DrawInstanced( vertex_buffer_view_.SizeInBytes / vertex_buffer_view_.StrideInBytes, 1, 0, 0 );
 
     {
         const auto barrier =

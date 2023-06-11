@@ -197,4 +197,14 @@ auto Window::present( const bool v_sync ) -> HRESULT
     return swapchain_->Present( v_sync ? 1u : 0u, 0 );
 }
 
+auto Window::width() const -> u32
+{
+    return props_.width;
+}
+
+auto Window::height() const -> u32
+{
+    return props_.height;
+}
+
 } // namespace mksv

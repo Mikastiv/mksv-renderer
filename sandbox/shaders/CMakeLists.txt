@@ -22,7 +22,7 @@ foreach(FILE ${SHADER_FILES})
     get_source_file_property(shader_type ${FILE} ShaderType)
     get_source_file_property(shader_model ${FILE} ShaderModel)
     add_custom_command(TARGET Shaders
-        COMMAND fxc.exe /nologo /Emain /T${shader_type}_${shader_model} $<IF:$<CONFIG:DEBUG>,/Od,/O1> /Zi /Fo ${CMAKE_BINARY_DIR}/${APP_NAME}/${FILE_WE}.cso /Fd ${CMAKE_BINARY_DIR}/${APP_NAME}/${FILE_WE}.pdb ${FILE}
+        COMMAND dxc.exe /nologo /Emain /T${shader_type}_${shader_model} $<IF:$<CONFIG:DEBUG>,/Od,/O1> /Zi /Fo ${CMAKE_BINARY_DIR}/${APP_NAME}/${FILE_WE}.cso /Fd ${CMAKE_BINARY_DIR}/${APP_NAME}/${FILE_WE}.pdb ${FILE}
         MAIN_DEPENDENCY ${FILE}
         COMMENT "HLSL ${FILE}"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}

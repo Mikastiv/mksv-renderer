@@ -13,6 +13,13 @@ auto heap_properties( const D3D12_HEAP_TYPE type ) -> D3D12_HEAP_PROPERTIES;
 
 auto buffer_resource_desc( const u64 width ) -> D3D12_RESOURCE_DESC;
 
+auto create_root_constant(
+    const u32                     num_32bits_values,
+    const u32                     shader_register,
+    const u32                     register_space = 0,
+    const D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL
+) -> D3D12_ROOT_PARAMETER;
+
 template <typename Inner, D3D12_PIPELINE_STATE_SUBOBJECT_TYPE type>
 struct alignas( void* ) PSSSubobject {
 public:

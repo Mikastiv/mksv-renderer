@@ -14,6 +14,8 @@
 #include <d3dcompiler.h>
 #include <ranges>
 
+namespace DX = DirectX;
+
 namespace mksv
 {
 struct Vertex {
@@ -311,12 +313,22 @@ auto Engine::copy_data() -> bool
         .StrideInBytes = sizeof( Vertex ),
     };
 
+    const D3D12_ROOT_PARAMETER params[1] = {
+        d3d12::create_root_constant( sizeof( mat4 ) / sizeof( u32 ), 0, 0, D3D12_SHADER_VISIBILITY_VERTEX ),
+    };
+
     const D3D12_ROOT_SIGNATURE_DESC root_signature_desc = {
-        .NumParameters = 0,
-        .pParameters = nullptr,
+        .NumParameters = 1,
+        .pParameters = params,
         .NumStaticSamplers = 0,
         .pStaticSamplers = nullptr,
-        .Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT,
+        .Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+                 D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS |
+                 D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+                 D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
+                 D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+                 D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS |
+                 D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS,
     };
 
     ComPtr<ID3DBlob> signature_blob;
@@ -352,20 +364,24 @@ auto Engine::copy_data() -> bool
     } pss;
 
     const D3D12_INPUT_ELEMENT_DESC elements_desc[] = {
-        {.SemanticName = "POSITION",
+        {
+         .SemanticName = "POSITION",
          .SemanticIndex = 0,
          .Format = DXGI_FORMAT_R32G32B32_FLOAT,
          .InputSlot = 0,
          .AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT,
          .InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-         .InstanceDataStepRate = 0},
-        { .SemanticName = "COLOR",
+         .InstanceDataStepRate = 0,
+         },
+        {
+         .SemanticName = "COLOR",
          .SemanticIndex = 0,
          .Format = DXGI_FORMAT_R32G32B32_FLOAT,
          .InputSlot = 0,
          .AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT,
          .InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-         .InstanceDataStepRate = 0},
+         .InstanceDataStepRate = 0,
+         },
     };
     const D3D12_INPUT_LAYOUT_DESC input_layout = {
         .pInputElementDescs = elements_desc,
@@ -464,15 +480,15 @@ auto Engine::update() -> void
     const f32  dt = duration_cast<duration<f32>>( now - prev ).count();
     prev = now;
 
-    static f32 time = 0.0f;
-    time += 1.0f * dt;
-    if ( time >= 2.0f * PI ) {
-        time -= 2.0f * PI;
+    static f32 angle = 0.0f;
+    angle += 1.0f * dt;
+    if ( angle >= 2.0f * PI ) {
+        angle -= 2.0f * PI;
     }
 
-    const f32  r = 0.5f + 0.5f * sin( time + 1.0f );
-    const f32  g = 0.5f + 0.5f * sin( time + 3.0f );
-    const f32  b = 0.5f + 0.5f * sin( time + 6.0f );
+    const f32  r = 0.5f + 0.5f * sin( angle + 1.0f );
+    const f32  g = 0.5f + 0.5f * sin( angle + 3.0f );
+    const f32  b = 0.5f + 0.5f * sin( angle + 6.0f );
     const f32  clear_color[4] = { r, g, b, 1.0f };
     const auto rtv = window_->get_render_target_view( current_index );
     command_list->ClearRenderTargetView( rtv, clear_color, 0, nullptr );
@@ -493,8 +509,19 @@ auto Engine::update() -> void
         .MaxDepth = D3D12_MAX_DEPTH,
     };
 
+    const mat4 rotation = DX::XMMatrixRotationZ( angle );
+    const vec4 eye_pos = DX::XMVectorSet( 0.0f, 0.0f, -1.0f, 1.0f );
+    const vec4 focus_pos = DX::XMVectorSet( 0.0f, 0.0f, 0.0f, 1.0f );
+    const vec4 up = DX::XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
+    const mat4 view = DX::XMMatrixLookAtLH( eye_pos, focus_pos, up );
+    const f32  aspect_ratio = static_cast<f32>( window_->width() ) / static_cast<f32>( window_->height() );
+    const mat4 projection = DX::XMMatrixPerspectiveFovLH( DX::XMConvertToRadians( 80.0f ), aspect_ratio, 0.1f, 100.0f );
+    const mat4 view_projection = view * projection;
+    const mat4 mvp = DX::XMMatrixTranspose( rotation * view_projection );
+
     command_list->SetPipelineState( pipeline_state_.Get() );
     command_list->SetGraphicsRootSignature( root_signature_.Get() );
+    command_list->SetGraphicsRoot32BitConstants( 0, sizeof( mat4 ) / sizeof( u32 ), &mvp, 0 );
     command_list->IASetPrimitiveTopology( D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
     command_list->IASetVertexBuffers( 0, 1, &vertex_buffer_view_ );
     command_list->RSSetViewports( 1, &viewport );

@@ -158,6 +158,8 @@ Engine::Engine( Engine&& other )
       command_queue_{ std::move( other.command_queue_ ) },
       vertex_buffer_{ std::move( other.vertex_buffer_ ) },
       vertex_buffer_view_{ other.vertex_buffer_view_ },
+      index_buffer_{ std::move( other.index_buffer_ ) },
+      index_buffer_view_{ other.index_buffer_view_ },
       root_signature_{ std::move( other.root_signature_ ) },
       pipeline_state_{ std::move( other.pipeline_state_ ) }
 {
@@ -180,6 +182,8 @@ auto Engine::operator=( Engine&& other ) -> Engine&
     command_queue_ = std::move( other.command_queue_ );
     vertex_buffer_ = std::move( other.vertex_buffer_ );
     vertex_buffer_view_ = other.vertex_buffer_view_;
+    index_buffer_ = std::move( other.index_buffer_ );
+    index_buffer_view_ = other.index_buffer_view_;
     root_signature_ = std::move( other.root_signature_ );
     pipeline_state_ = std::move( other.pipeline_state_ );
     other.h_instance_ = nullptr;
@@ -211,17 +215,29 @@ auto Engine::copy_data() -> bool
     }
 
     const vec3 red = { 1.0f, 0.0f, 0.0f };
+    const vec3 yellow = { 1.0f, 1.0f, 0.0f };
     const vec3 green = { 0.0f, 1.0f, 0.0f };
+    const vec3 cyan = { 0.0f, 1.0f, 1.0f };
     const vec3 blue = { 0.0f, 0.0f, 1.0f };
 
-    const vec3 top = { 0.00f, 0.50f, 0.0f };
-    const vec3 left = { -0.43f, -0.25f, 0.0f };
-    const vec3 right = { 0.43f, -0.25f, 0.0f };
-
     const Vertex vertices[] = {
-        {top,    red  },
-        { right, blue },
-        { left,  green},
+        {{ -0.5f, 0.5f, 0.5f },    red   },
+        { { 0.5f, 0.5f, 0.5f },    yellow},
+        { { 0.5f, -0.5f, 0.5f },   blue  },
+        { { -0.5f, -0.5f, 0.5f },  green },
+        { { -0.5f, 0.5f, -0.5f },  cyan  },
+        { { 0.5f, 0.5f, -0.5f },   green },
+        { { 0.5f, -0.5f, -0.5f },  blue  },
+        { { -0.5f, -0.5f, -0.5f }, yellow},
+    };
+
+    const u32 indices[] = {
+        0, 1, 2, 2, 3, 0, // front
+        0, 4, 5, 5, 1, 0, // top
+        3, 2, 6, 6, 7, 3, // botttom
+        4, 7, 6, 6, 5, 4, // back
+        0, 3, 7, 7, 4, 0, // left
+        1, 5, 6, 6, 2, 1, // right
     };
 
     {
@@ -274,6 +290,51 @@ auto Engine::copy_data() -> bool
     std::ranges::copy( vertices, mapped_vertices );
     vertex_upload_buffer->Unmap( 0, nullptr );
 
+    {
+        const auto heap_props = d3d12::heap_properties( D3D12_HEAP_TYPE_DEFAULT );
+        const auto res_desc = d3d12::buffer_resource_desc( sizeof( indices ) );
+
+        hr = device_->CreateCommittedResource(
+            &heap_props,
+            D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
+            &res_desc,
+            D3D12_RESOURCE_STATE_COPY_DEST,
+            nullptr,
+            IID_PPV_ARGS( &index_buffer_ )
+        );
+
+        if ( FAILED( hr ) ) {
+            log_hresult( hr );
+            return false;
+        }
+    }
+
+    ComPtr<ID3D12Resource> index_upload_buffer{};
+    {
+        const auto heap_props = d3d12::heap_properties( D3D12_HEAP_TYPE_UPLOAD );
+        const auto res_desc = d3d12::buffer_resource_desc( sizeof( indices ) );
+
+        hr = device_->CreateCommittedResource(
+            &heap_props,
+            D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
+            &res_desc,
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS( &index_upload_buffer )
+        );
+    }
+
+    u32* mapped_indices = nullptr;
+    hr = index_upload_buffer->Map( 0, nullptr, reinterpret_cast<void**>( &mapped_indices ) );
+
+    if ( FAILED( hr ) ) {
+        log_hresult( hr );
+        return false;
+    }
+
+    std::ranges::copy( indices, mapped_indices );
+    index_upload_buffer->Unmap( 0, nullptr );
+
     hr = command_allocator->Reset();
     if ( FAILED( hr ) ) {
         log_hresult( hr );
@@ -294,6 +355,11 @@ auto Engine::copy_data() -> bool
     );
     command_list->ResourceBarrier( 1, &vertex_barrier );
 
+    command_list->CopyResource( index_buffer_.Get(), index_upload_buffer.Get() );
+    const auto index_barrier =
+        d3d12::transition_barrier( index_buffer_.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER );
+    command_list->ResourceBarrier( 1, &index_barrier );
+
     hr = command_list->Close();
     if ( FAILED( hr ) ) {
         log_hresult( hr );
@@ -311,6 +377,12 @@ auto Engine::copy_data() -> bool
         .BufferLocation = vertex_buffer_->GetGPUVirtualAddress(),
         .SizeInBytes = sizeof( vertices ),
         .StrideInBytes = sizeof( Vertex ),
+    };
+
+    index_buffer_view_ = {
+        .BufferLocation = index_buffer_->GetGPUVirtualAddress(),
+        .SizeInBytes = sizeof( indices ),
+        .Format = DXGI_FORMAT_R32_UINT,
     };
 
     const D3D12_ROOT_PARAMETER params[1] = {
@@ -509,25 +581,26 @@ auto Engine::update() -> void
         .MaxDepth = D3D12_MAX_DEPTH,
     };
 
-    const mat4 rotation = DX::XMMatrixRotationZ( angle );
-    const vec4 eye_pos = DX::XMVectorSet( 0.0f, 0.0f, -1.0f, 1.0f );
+    const vec4 axis = DX::XMVectorSet( 0, 1, 1, 0 );
+    const mat4 rotation = DX::XMMatrixRotationAxis( axis, angle );
+    const vec4 eye_pos = DX::XMVectorSet( 0.0f, 0.0f, -2.0f, 1.0f );
     const vec4 focus_pos = DX::XMVectorSet( 0.0f, 0.0f, 0.0f, 1.0f );
     const vec4 up = DX::XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
     const mat4 view = DX::XMMatrixLookAtLH( eye_pos, focus_pos, up );
     const f32  aspect_ratio = static_cast<f32>( window_->width() ) / static_cast<f32>( window_->height() );
     const mat4 projection = DX::XMMatrixPerspectiveFovLH( DX::XMConvertToRadians( 80.0f ), aspect_ratio, 0.1f, 100.0f );
-    const mat4 view_projection = view * projection;
-    const mat4 mvp = DX::XMMatrixTranspose( rotation * view_projection );
+    const mat4 mvp = DX::XMMatrixTranspose( rotation * view * projection );
 
     command_list->SetPipelineState( pipeline_state_.Get() );
     command_list->SetGraphicsRootSignature( root_signature_.Get() );
     command_list->SetGraphicsRoot32BitConstants( 0, sizeof( mat4 ) / sizeof( u32 ), &mvp, 0 );
     command_list->IASetPrimitiveTopology( D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
     command_list->IASetVertexBuffers( 0, 1, &vertex_buffer_view_ );
+    command_list->IASetIndexBuffer( &index_buffer_view_ );
     command_list->RSSetViewports( 1, &viewport );
     command_list->RSSetScissorRects( 1, &scissor_rect );
     command_list->OMSetRenderTargets( 1, &rtv, true, nullptr );
-    command_list->DrawInstanced( vertex_buffer_view_.SizeInBytes / vertex_buffer_view_.StrideInBytes, 1, 0, 0 );
+    command_list->DrawIndexedInstanced( index_buffer_view_.SizeInBytes / sizeof( u32 ), 1, 0, 0, 0 );
 
     {
         const auto barrier =

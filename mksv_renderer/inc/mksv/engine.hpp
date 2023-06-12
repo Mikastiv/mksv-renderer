@@ -27,6 +27,7 @@ public:
     ~Engine();
 
 public:
+    [[nodiscard]] auto init() -> bool;
     [[nodiscard]] auto copy_data() -> bool;
     auto               update() -> void;
 
@@ -46,19 +47,21 @@ private:
 private:
     static inline u32 instance_count = 0;
 
-    HINSTANCE                     h_instance_;
-    std::unique_ptr<WindowClass>  window_class_;
-    std::unique_ptr<Window>       window_;
-    Keyboard                      keyboard_;
-    ComPtr<DXGIAdapter>           adapter_;
-    ComPtr<D3D12Device>           device_;
-    std::unique_ptr<CommandQueue> command_queue_;
-    ComPtr<ID3D12Resource>        vertex_buffer_;
-    D3D12_VERTEX_BUFFER_VIEW      vertex_buffer_view_;
-    ComPtr<ID3D12Resource>        index_buffer_;
-    D3D12_INDEX_BUFFER_VIEW       index_buffer_view_;
-    ComPtr<ID3D12RootSignature>   root_signature_;
-    ComPtr<ID3D12PipelineState>   pipeline_state_;
+    HINSTANCE                        h_instance_;
+    std::unique_ptr<WindowClass>     window_class_;
+    std::unique_ptr<Window>          window_;
+    Keyboard                         keyboard_;
+    ComPtr<DXGIAdapter>              adapter_;
+    ComPtr<D3D12Device>              device_;
+    std::unique_ptr<CommandQueue>    command_queue_;
+    ComPtr<ID3D12CommandAllocator>   command_allocator_;
+    ComPtr<D3D12GraphicsCommandList> command_list_;
+    ComPtr<ID3D12Resource>           vertex_buffer_;
+    D3D12_VERTEX_BUFFER_VIEW         vertex_buffer_view_;
+    ComPtr<ID3D12Resource>           index_buffer_;
+    D3D12_INDEX_BUFFER_VIEW          index_buffer_view_;
+    ComPtr<ID3D12RootSignature>      root_signature_;
+    ComPtr<ID3D12PipelineState>      pipeline_state_;
 };
 
 } // namespace mksv

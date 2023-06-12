@@ -22,7 +22,6 @@ public:
 
 public:
     auto get_ptr() const -> ComPtr<ID3D12CommandQueue>;
-    auto get_command_list() -> ComPtr<D3D12GraphicsCommandList>;
     auto execute( ID3D12CommandList* const command_list ) -> void;
     auto signal() -> u64;
     auto is_fence_complete( const u64 fence_value ) const -> bool;
@@ -30,10 +29,9 @@ public:
     auto flush() -> HRESULT;
 
 private:
-    CommandQueue( ComPtr<D3D12Device> device, ComPtr<ID3D12CommandQueue> queue, ComPtr<ID3D12Fence> fence, const HANDLE event );
+    CommandQueue( ComPtr<ID3D12CommandQueue> queue, ComPtr<ID3D12Fence> fence, const HANDLE event );
 
 private:
-    ComPtr<D3D12Device>        device_;
     ComPtr<ID3D12CommandQueue> queue_;
     ComPtr<ID3D12Fence>        fence_;
     HANDLE                     fence_event_;

@@ -25,6 +25,11 @@ auto WINAPI wWinMain(
         return -1;
     }
 
+    if ( !engine->init() ) {
+        mksv::log_error( L"Failed to init the engine" );
+        return -1;
+    }
+
     if ( !engine->copy_data() ) {
         mksv::log_error( L"Failed to upload data to GPU" );
         return -1;

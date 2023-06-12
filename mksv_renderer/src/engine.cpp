@@ -156,6 +156,8 @@ Engine::Engine( Engine&& other )
       adapter_{ std::move( other.adapter_ ) },
       device_{ std::move( other.device_ ) },
       command_queue_{ std::move( other.command_queue_ ) },
+      command_allocator_{ std::move( other.command_allocator_ ) },
+      command_list_{ std::move( other.command_list_ ) },
       vertex_buffer_{ std::move( other.vertex_buffer_ ) },
       vertex_buffer_view_{ other.vertex_buffer_view_ },
       index_buffer_{ std::move( other.index_buffer_ ) },
@@ -180,6 +182,8 @@ auto Engine::operator=( Engine&& other ) -> Engine&
     adapter_ = std::move( other.adapter_ );
     device_ = std::move( other.device_ );
     command_queue_ = std::move( other.command_queue_ );
+    command_allocator_ = std::move( other.command_allocator_ );
+    command_list_ = std::move( other.command_list_ );
     vertex_buffer_ = std::move( other.vertex_buffer_ );
     vertex_buffer_view_ = other.vertex_buffer_view_;
     index_buffer_ = std::move( other.index_buffer_ );
@@ -198,22 +202,29 @@ Engine::~Engine()
     --instance_count;
 }
 
-auto Engine::copy_data() -> bool
+auto Engine::init() -> bool
 {
-    auto command_list = command_queue_->get_command_list();
-    if ( !command_list ) {
-        return false;
-    }
+    const auto desc = command_queue_->get_ptr()->GetDesc();
 
-    ID3D12CommandAllocator* command_allocator = nullptr;
-    u32                     data_size = sizeof( command_allocator );
-    HRESULT hr = command_list->GetPrivateData( __uuidof( ID3D12CommandAllocator ), &data_size, &command_allocator );
+    HRESULT hr = device_->CreateCommandAllocator( desc.Type, IID_PPV_ARGS( &command_allocator_ ) );
 
     if ( FAILED( hr ) ) {
         log_hresult( hr );
         return false;
     }
 
+    hr = device_->CreateCommandList1( 0, desc.Type, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS( &command_list_ ) );
+
+    if ( FAILED( hr ) ) {
+        log_hresult( hr );
+        return false;
+    }
+
+    return true;
+}
+
+auto Engine::copy_data() -> bool
+{
     const vec3 red = { 1.0f, 0.0f, 0.0f };
     const vec3 yellow = { 1.0f, 1.0f, 0.0f };
     const vec3 green = { 0.0f, 1.0f, 0.0f };
@@ -227,7 +238,7 @@ auto Engine::copy_data() -> bool
         { { -0.5f, -0.5f, 0.5f },  green },
         { { -0.5f, 0.5f, -0.5f },  cyan  },
         { { 0.5f, 0.5f, -0.5f },   green },
-        { { 0.5f, -0.5f, -0.5f },  blue  },
+        { { 0.5f, -0.5f, -0.5f },  red   },
         { { -0.5f, -0.5f, -0.5f }, yellow},
     };
 
@@ -239,6 +250,8 @@ auto Engine::copy_data() -> bool
         0, 7, 3, 7, 0, 4, // left
         1, 6, 5, 6, 1, 2, // right
     };
+
+    HRESULT hr = E_FAIL;
 
     {
         const auto heap_props = d3d12::heap_properties( D3D12_HEAP_TYPE_DEFAULT );
@@ -279,16 +292,18 @@ auto Engine::copy_data() -> bool
         }
     }
 
-    Vertex* mapped_vertices = nullptr;
-    hr = vertex_upload_buffer->Map( 0, nullptr, reinterpret_cast<void**>( &mapped_vertices ) );
+    {
+        Vertex* mapped_vertices = nullptr;
+        hr = vertex_upload_buffer->Map( 0, nullptr, reinterpret_cast<void**>( &mapped_vertices ) );
 
-    if ( FAILED( hr ) ) {
-        log_hresult( hr );
-        return false;
+        if ( FAILED( hr ) ) {
+            log_hresult( hr );
+            return false;
+        }
+
+        std::ranges::copy( vertices, mapped_vertices );
+        vertex_upload_buffer->Unmap( 0, nullptr );
     }
-
-    std::ranges::copy( vertices, mapped_vertices );
-    vertex_upload_buffer->Unmap( 0, nullptr );
 
     {
         const auto heap_props = d3d12::heap_properties( D3D12_HEAP_TYPE_DEFAULT );
@@ -324,49 +339,51 @@ auto Engine::copy_data() -> bool
         );
     }
 
-    u32* mapped_indices = nullptr;
-    hr = index_upload_buffer->Map( 0, nullptr, reinterpret_cast<void**>( &mapped_indices ) );
+    {
+        u32* mapped_indices = nullptr;
+        hr = index_upload_buffer->Map( 0, nullptr, reinterpret_cast<void**>( &mapped_indices ) );
 
+        if ( FAILED( hr ) ) {
+            log_hresult( hr );
+            return false;
+        }
+
+        std::ranges::copy( indices, mapped_indices );
+        index_upload_buffer->Unmap( 0, nullptr );
+    }
+
+    hr = command_allocator_->Reset();
     if ( FAILED( hr ) ) {
         log_hresult( hr );
         return false;
     }
 
-    std::ranges::copy( indices, mapped_indices );
-    index_upload_buffer->Unmap( 0, nullptr );
-
-    hr = command_allocator->Reset();
+    hr = command_list_->Reset( command_allocator_.Get(), nullptr );
     if ( FAILED( hr ) ) {
         log_hresult( hr );
         return false;
     }
 
-    hr = command_list->Reset( command_allocator, nullptr );
-    if ( FAILED( hr ) ) {
-        log_hresult( hr );
-        return false;
-    }
-
-    command_list->CopyResource( vertex_buffer_.Get(), vertex_upload_buffer.Get() );
+    command_list_->CopyResource( vertex_buffer_.Get(), vertex_upload_buffer.Get() );
     const auto vertex_barrier = d3d12::transition_barrier(
         vertex_buffer_.Get(),
         D3D12_RESOURCE_STATE_COPY_DEST,
         D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
     );
-    command_list->ResourceBarrier( 1, &vertex_barrier );
+    command_list_->ResourceBarrier( 1, &vertex_barrier );
 
-    command_list->CopyResource( index_buffer_.Get(), index_upload_buffer.Get() );
+    command_list_->CopyResource( index_buffer_.Get(), index_upload_buffer.Get() );
     const auto index_barrier =
         d3d12::transition_barrier( index_buffer_.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER );
-    command_list->ResourceBarrier( 1, &index_barrier );
+    command_list_->ResourceBarrier( 1, &index_barrier );
 
-    hr = command_list->Close();
+    hr = command_list_->Close();
     if ( FAILED( hr ) ) {
         log_hresult( hr );
         return false;
     }
 
-    command_queue_->execute( command_list.Get() );
+    command_queue_->execute( command_list_.Get() );
     hr = command_queue_->flush();
     if ( FAILED( hr ) ) {
         log_hresult( hr );
@@ -512,30 +529,16 @@ auto Engine::update() -> void
 
     static auto prev = high_resolution_clock::now();
 
-    auto command_list = command_queue_->get_command_list();
-    if ( !command_list ) {
-        return;
-    }
-
-    ID3D12CommandAllocator* command_allocator = nullptr;
-    u32                     data_size = sizeof( command_allocator );
-    HRESULT hr = command_list->GetPrivateData( __uuidof( ID3D12CommandAllocator ), &data_size, &command_allocator );
-
-    if ( FAILED( hr ) ) {
-        log_hresult( hr );
-        return;
-    }
-
     const u32   current_index = window_->get_current_back_buffer_index();
     const auto& back_buffer = window_->get_back_buffer( current_index );
 
-    hr = command_allocator->Reset();
+    HRESULT hr = command_allocator_->Reset();
     if ( FAILED( hr ) ) {
         log_hresult( hr );
         return;
     }
 
-    hr = command_list->Reset( command_allocator, nullptr );
+    hr = command_list_->Reset( command_allocator_.Get(), nullptr );
     if ( FAILED( hr ) ) {
         log_hresult( hr );
         return;
@@ -545,7 +548,7 @@ auto Engine::update() -> void
         const auto barrier =
             d3d12::transition_barrier( back_buffer.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET );
 
-        command_list->ResourceBarrier( 1, &barrier );
+        command_list_->ResourceBarrier( 1, &barrier );
     }
 
     const auto now = high_resolution_clock::now();
@@ -563,7 +566,7 @@ auto Engine::update() -> void
     const f32  b = 0.5f + 0.5f * sin( angle + 6.0f );
     const f32  clear_color[4] = { r, g, b, 1.0f };
     const auto rtv = window_->get_render_target_view( current_index );
-    command_list->ClearRenderTargetView( rtv, clear_color, 0, nullptr );
+    command_list_->ClearRenderTargetView( rtv, clear_color, 0, nullptr );
 
     const D3D12_RECT scissor_rect = {
         .left = 0,
@@ -591,31 +594,31 @@ auto Engine::update() -> void
     const mat4 projection = DX::XMMatrixPerspectiveFovLH( DX::XMConvertToRadians( 80.0f ), aspect_ratio, 0.1f, 100.0f );
     const mat4 mvp = DX::XMMatrixTranspose( rotation * view * projection );
 
-    command_list->SetPipelineState( pipeline_state_.Get() );
-    command_list->SetGraphicsRootSignature( root_signature_.Get() );
-    command_list->SetGraphicsRoot32BitConstants( 0, sizeof( mat4 ) / sizeof( u32 ), &mvp, 0 );
-    command_list->IASetPrimitiveTopology( D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
-    command_list->IASetVertexBuffers( 0, 1, &vertex_buffer_view_ );
-    command_list->IASetIndexBuffer( &index_buffer_view_ );
-    command_list->RSSetViewports( 1, &viewport );
-    command_list->RSSetScissorRects( 1, &scissor_rect );
-    command_list->OMSetRenderTargets( 1, &rtv, true, nullptr );
-    command_list->DrawIndexedInstanced( index_buffer_view_.SizeInBytes / sizeof( u32 ), 1, 0, 0, 0 );
+    command_list_->SetPipelineState( pipeline_state_.Get() );
+    command_list_->SetGraphicsRootSignature( root_signature_.Get() );
+    command_list_->SetGraphicsRoot32BitConstants( 0, sizeof( mat4 ) / sizeof( u32 ), &mvp, 0 );
+    command_list_->IASetPrimitiveTopology( D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
+    command_list_->IASetVertexBuffers( 0, 1, &vertex_buffer_view_ );
+    command_list_->IASetIndexBuffer( &index_buffer_view_ );
+    command_list_->RSSetViewports( 1, &viewport );
+    command_list_->RSSetScissorRects( 1, &scissor_rect );
+    command_list_->OMSetRenderTargets( 1, &rtv, true, nullptr );
+    command_list_->DrawIndexedInstanced( index_buffer_view_.SizeInBytes / sizeof( u32 ), 1, 0, 0, 0 );
 
     {
         const auto barrier =
             d3d12::transition_barrier( back_buffer.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT );
 
-        command_list->ResourceBarrier( 1, &barrier );
+        command_list_->ResourceBarrier( 1, &barrier );
     }
 
-    hr = command_list->Close();
+    hr = command_list_->Close();
     if ( FAILED( hr ) ) {
         log_hresult( hr );
         return;
     }
 
-    command_queue_->execute( command_list.Get() );
+    command_queue_->execute( command_list_.Get() );
 
     hr = window_->present( false );
     if ( FAILED( hr ) ) {

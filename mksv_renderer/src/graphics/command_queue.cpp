@@ -40,9 +40,7 @@ auto CommandQueue::create( ComPtr<D3D12Device> device, const D3D12_COMMAND_LIST_
         return nullptr;
     }
 
-    return std::unique_ptr<CommandQueue>(
-        new CommandQueue( std::move( device ), std::move( command_queue ), std::move( fence ), event )
-    );
+    return std::unique_ptr<CommandQueue>( new CommandQueue( std::move( command_queue ), std::move( fence ), event ) );
 }
 
 CommandQueue::~CommandQueue()
@@ -50,14 +48,8 @@ CommandQueue::~CommandQueue()
     CloseHandle( fence_event_ );
 }
 
-CommandQueue::CommandQueue(
-    ComPtr<D3D12Device>        device,
-    ComPtr<ID3D12CommandQueue> queue,
-    ComPtr<ID3D12Fence>        fence,
-    const HANDLE               event
-)
-    : device_{ std::move( device ) },
-      queue_{ std::move( queue ) },
+CommandQueue::CommandQueue( ComPtr<ID3D12CommandQueue> queue, ComPtr<ID3D12Fence> fence, const HANDLE event )
+    : queue_{ std::move( queue ) },
       fence_{ std::move( fence ) },
       fence_event_{ event },
       fence_value_{ 0 }
@@ -67,36 +59,6 @@ CommandQueue::CommandQueue(
 auto CommandQueue::get_ptr() const -> ComPtr<ID3D12CommandQueue>
 {
     return queue_;
-}
-
-auto CommandQueue::get_command_list() -> ComPtr<D3D12GraphicsCommandList>
-{
-    const auto desc = queue_->GetDesc();
-
-    ComPtr<ID3D12CommandAllocator> command_allocator{};
-    HRESULT hr = device_->CreateCommandAllocator( desc.Type, IID_PPV_ARGS( &command_allocator ) );
-
-    if ( FAILED( hr ) ) {
-        log_hresult( hr );
-        return nullptr;
-    }
-
-    ComPtr<D3D12GraphicsCommandList> command_list{};
-    hr = device_->CreateCommandList1( 0, desc.Type, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS( &command_list ) );
-
-    if ( FAILED( hr ) ) {
-        log_hresult( hr );
-        return nullptr;
-    }
-
-    hr = command_list->SetPrivateDataInterface( __uuidof( ID3D12CommandAllocator ), command_allocator.Get() );
-
-    if ( FAILED( hr ) ) {
-        log_hresult( hr );
-        return nullptr;
-    }
-
-    return command_list;
 }
 
 auto CommandQueue::execute( ID3D12CommandList* const command_list ) -> void
